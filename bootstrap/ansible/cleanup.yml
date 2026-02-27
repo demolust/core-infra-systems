@@ -5,14 +5,14 @@
   gather_facts: true
 
   tasks:
+    - name: Stop Podman Services
+      ansible.builtin.include_tasks: tasks/container_cleanup.yml
+
     - name: Clean up Host Networking and Security
       block:
         - name: Elevate and Include Host Cleanup Tasks
           ansible.builtin.include_tasks: tasks/host_cleanup.yml
       become: true
-
-    - name: Stop Podman Services
-      ansible.builtin.include_tasks: tasks/container_cleanup.yml
 
     #- name: Cleanup Directory Structure
     #  ansible.builtin.include_tasks: tasks/cleanup_dir_structure.yml

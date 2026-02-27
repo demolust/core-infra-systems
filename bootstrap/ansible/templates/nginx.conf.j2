@@ -1,15 +1,21 @@
-server {
-  listen {{ bootstrap_ip }}:{{ pxe_http_port }} default_server;
-  server_name _;
+events {
+    worker_connections 1024;
+}
 
-  location / {
-    root /usr/share/nginx/html;
-    autoindex on;
-    sendfile on;
-    tcp_nopush on;
-    keepalive_timeout 65;
+http {
+  server {
+    listen {{ bootstrap_ip }}:{{ pxe_http_port }} default_server;
+    server_name _;
 
-    # Critical for PXE: prevents the browser/client from trying to "render" the boot files.
-    default_type application/octet-stream;
+    location / {
+      root /usr/share/nginx/html;
+      autoindex on;
+      sendfile on;
+      tcp_nopush on;
+      keepalive_timeout 65;
+
+      # Critical for PXE: prevents the browser/client from trying to "render" the boot files.
+      default_type application/octet-stream;
+    }
   }
 }

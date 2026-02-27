@@ -1,0 +1,13 @@
+---
+- name: Stop and Remove PXE Containers
+  containers.podman.podman_container:
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - pxe_dnsmasq
+    - pxe_http
+
+- name: Remove the PXE Pod
+  containers.podman.podman_pod:
+    name: pxe_pod
+    state: absent
