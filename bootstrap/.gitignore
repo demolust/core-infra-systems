@@ -19,3 +19,6 @@ ipxe.*
 # In case you generate custom iPXE scripts with local IPs
 *.ipxe
 !example.ipxe
+
+# --- Local Vars ---
+.env

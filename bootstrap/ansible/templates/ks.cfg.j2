@@ -1,0 +1,109 @@
+# {{ os_base }} {{ version }} Kickstart Template
+# Standard Headless Server Profile
+
+lang en_US.UTF-8
+keyboard us
+timezone {{ timezone | default('UTC') }}
+text
+skipx
+firstboot --disabled
+reboot
+
+# --- Storage Detection Logic ---
+%include /tmp/part-include
+
+%pre
+#!/bin/bash
+# Detect target drive
+if [ -b "/dev/nvme0n1" ]; then
+    TARGET_DRIVE="nvme0n1"
+elif [ -b "/dev/sda" ]; then
+    TARGET_DRIVE="sda"
+else
+    TARGET_DRIVE=$(lsblk -ndo NAME | grep -vE "loop|sr" | head -n1)
+fi
+
+# Save target device for the main installer
+cat <<EOF > /tmp/part-include
+zerombr
+clearpart --all --initlabel --drives=${TARGET_DRIVE}
+ignoredisk --only-use=${TARGET_DRIVE}
+autopart --type=lvm
+EOF
+
+# Save target device for the %post script
+echo "$TARGET_DRIVE" > /tmp/install_disk
+%end
+
+# --- Authentication ---
+rootpw --iscrypted {{ root_password_hash }}
+user --name={{ admin_username }} --groups=wheel --iscrypted --password={{ admin_password_hash }}
+
+# --- Network & Sources ---
+url --url="http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/"
+repo --name="AppStream" --baseurl="http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/AppStream/"
+network --bootproto=dhcp --device=link --onboot=yes --hostname={{ hostname }} --activate
+
+firewall --enabled --ssh
+selinux --enforcing
+
+# --- Packages ---
+%packages
+@^minimal-environment
+@standard
+kexec-tools
+curl
+vim-enhanced
+wget
+tar
+parted
+%end
+
+# --- Secondary Disk Auto-Mount ---
+%post --nochroot
+# Copy the install_disk file from the installer RAM to the new system so %post can see it
+cp /tmp/install_disk /mnt/sysimage/tmp/install_disk
+%end
+
+%post --log=/root/ks-post.log
+INSTALL_DISK=$(cat /tmp/install_disk)
+DATA_COUNT=1
+
+# Find all disks that are NOT the installation disk
+for DISK in $(lsblk -dn -o NAME | grep -vE "loop|sr|zram|$INSTALL_DISK"); do
+  DEVICE="/dev/$DISK"
+  MOUNT_POINT="/data$DATA_COUNT"
+
+  # Partitioning
+  parted -s $DEVICE mklabel gpt
+  parted -s $DEVICE mkpart primary ext4 0% 100%
+
+  udevadm settle
+
+  # Handle NVMe partition naming (nvme0n1p1) vs SATA (sda1)
+  if [[ $DEVICE == *"nvme"* ]]; then
+      PARTITION="${DEVICE}p1"
+  else
+      PARTITION="${DEVICE}1"
+  fi
+
+  # Format and Mount
+  mkfs.ext4 -L "data$DATA_COUNT" $PARTITION
+  mkdir -p $MOUNT_POINT
+  UUID=$(blkid -s UUID -o value $PARTITION)
+  echo "UUID=$UUID $MOUNT_POINT ext4 defaults 0 2" >> /etc/fstab
+
+  ((DATA_COUNT++))
+done
+
+# --- Final System Setup ---
+/usr/bin/dnf -y update
+
+# SSH Key Setup
+mkdir -p /home/{{ admin_username }}/.ssh
+echo "{{ admin_ssh_pub_key }}" >> /home/{{ admin_username }}/.ssh/authorized_keys
+chown -R {{ admin_username }}:{{ admin_username }} /home/{{ admin_username }}/.ssh
+chmod 700 /home/{{ admin_username }}/.ssh
+chmod 600 /home/{{ admin_username }}/.ssh/authorized_keys
+
+%end

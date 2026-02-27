@@ -4,7 +4,7 @@ events {
 
 http {
   server {
-    listen {{ bootstrap_ip }}:{{ pxe_http_port }} default_server;
+    listen {{ pxe_http_port }} default_server;
     server_name _;
 
     location / {

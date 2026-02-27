@@ -1,6 +1,7 @@
 # Only listen on the defined interface
 interface={{ bootstrap_interface }}
 bind-interfaces
+#bind-dynamic
 
 # Disable DNS functionality (since only need DHCP/TFTP)
 port=0
@@ -18,15 +19,20 @@ dhcp-boot=tag:is_ipxe,http://{{ bootstrap_ip }}/{{ selected_arch }}/boot.ipxe
 
 # Assign Bootloader based on Architecture + SB Variable
 {% if sb_enabled -%}
-  # Secure Boot: Hand out Shim (GRUB will look for grub.cfg in the same TFTP folder)
-  dhcp-boot=tag:x86_64,tag:!is_ipxe,x86_64/{{ boot_files['x86_64'].shim }}
-  dhcp-boot=tag:aarch64,tag:!is_ipxe,aarch64/{{ boot_files['aarch64'].shim }}
+  dhcp-boot=tag:x86_64,tag:!is_ipxe,x86_64/{{ boot_files['x86_64'].shim }},{{ bootstrap_ip }},{{ bootstrap_ip }}
+  dhcp-boot=tag:aarch64,tag:!is_ipxe,aarch64/{{ boot_files['aarch64'].shim }},{{ bootstrap_ip }},{{ bootstrap_ip }}
 {%- else -%}
-  # Non-Secure Boot: Hand out the iPXE binary
-  dhcp-boot=tag:x86_64,tag:!is_ipxe,x86_64/ipxe.efi
-  dhcp-boot=tag:aarch64,tag:!is_ipxe,aarch64/ipxe.efi
+  dhcp-boot=tag:x86_64,tag:!is_ipxe,x86_64/ipxe.efi,{{ bootstrap_ip }},{{ bootstrap_ip }}
+  dhcp-boot=tag:aarch64,tag:!is_ipxe,aarch64/ipxe.efi,{{ bootstrap_ip }},{{ bootstrap_ip }}
 {%- endif %}
 
 # TFTP Setup
 enable-tftp
 tftp-root=/var/lib/tftpboot
+# Add this to handle finicky UEFI clients that abort on minor errors
+tftp-no-fail
+
+# Enable logging
+log-facility=-
+log-dhcp
+log-queries
