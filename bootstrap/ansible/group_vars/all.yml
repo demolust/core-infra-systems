@@ -1,0 +1,11 @@
+---
+bootstrap_interface: "{{ lookup('env', 'BOOTSTRAP_INT') | default('') }}"
+sb_enabled: "{{ lookup('env', 'TARGET_SB_ENABLED') | default('False') | bool }}"
+bootstrap_ip: "192.168.100.1"
+arch_map:
+  amd: "x86_64"
+  x86_64: "x86_64"
+  arm: "aarch64"
+  aarch64: "aarch64"
+selected_arch: "{{ arch_map[lookup('env', 'TARGET_HOST_ARCH') | default('amd', true)] }}"
+base_dir: "{{ playbook_dir }}/../pxe-data"

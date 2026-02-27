@@ -1,0 +1,46 @@
+---
+- name: Set variables for the rest of the run
+  ansible.builtin.set_fact:
+    alma_version: "9"
+    iso_type: "dvd"
+
+- name: Set derived variables
+  ansible.builtin.set_fact:
+    remote_iso_name: "AlmaLinux-{{ alma_version }}-latest-{{ selected_arch }}-{{ iso_type }}.iso"
+    dest_path: "{{ base_dir }}/isos/alma9.iso"
+
+- name: Extract SHA256 hash for the ISO
+  ansible.builtin.set_fact:
+    target_hash: >-
+      {{ lookup('url', 'https://repo.almalinux.org/almalinux/{}/isos/{}/CHECKSUM'.format(alma_version, selected_arch), split_lines=False)
+        | regex_search('SHA256 \(' ~ (remote_iso_name | regex_escape) ~ '\) = ([a-f0-9]{64})', '\1')
+        | first }}
+
+- name: Download the latest AlmaLinux {{ alma_version }} ISO
+  ansible.builtin.get_url:
+    url: "https://repo.almalinux.org/almalinux/{{ alma_version }}/isos/{{ selected_arch }}/{{ remote_iso_name }}"
+    dest: "{{ dest_path }}"
+    checksum: "sha256:{{ target_hash }}"
+    mode: '0644'
+    force: no
+  register: download_result
+
+- name: Show download status
+  ansible.builtin.debug:
+    msg: "ISO downloaded to {{ download_result.dest }}"
+
+- name: Extract Boot Files (Kernel & Initrd)
+  community.general.iso_extract:
+    image: "{{ dest_path }}"
+    dest: "{{ base_dir }}/tftp/{{ selected_arch }}"
+    files:
+      - "images/pxeboot/vmlinuz"
+      - "images/pxeboot/initrd.img"
+      - "{{ 'EFI/BOOT/shimx64.efi' if selected_arch == 'x86_64' else 'EFI/BOOT/shimaa64.efi' }}"
+      - "{{ 'EFI/BOOT/grubx64.efi' if selected_arch == 'x86_64' else 'EFI/BOOT/grubaa64.efi' }}"
+
+- name: Unpack Full ISO for HTTP Installation
+  ansible.builtin.command:
+    cmd: "7z x {{ dest_path }} -o{{ base_dir }}/www/repo/{{ selected_arch }}/ -y"
+  args:
+    creates: "{{ base_dir }}/www/repo/{{ selected_arch }}/BaseOS"

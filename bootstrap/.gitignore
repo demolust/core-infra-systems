@@ -1,0 +1,21 @@
+# --- Ignore the Artifacts ---
+pxe-data/
+isos/
+
+# --- Specific Safety Nets ---
+# Ensure no large binaries accidentally escape the folders above
+*.iso
+*.img
+vmlinuz
+initrd*
+*.qcow2
+
+# --- EFI & Bootloaders ---
+*.efi
+*.shim
+ipxe.*
+
+# --- Local Customizations ---
+# In case you generate custom iPXE scripts with local IPs
+*.ipxe
+!example.ipxe
