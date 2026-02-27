@@ -9,11 +9,13 @@
       x86_64:
         efi_loader: "EFI/BOOT/BOOTX64.EFI"
         grub_efi: "EFI/BOOT/grubx64.efi"
+        grub_filename: "grubx64.efi"
         shim: "BOOTX64.EFI"
         ipxe_arch: "x86_64-efi"
       aarch64:
         efi_loader: "EFI/BOOT/BOOTAA64.EFI"
         grub_efi: "EFI/BOOT/grubaa64.efi"
+        grub_filename: "grubaa64.efi"
         shim: "BOOTAA64.EFI"
         ipxe_arch: "arm64-efi"
 
@@ -54,6 +56,14 @@
       - "images/pxeboot/initrd.img"
       - "{{ boot_files[selected_arch].efi_loader }}"
       - "{{ boot_files[selected_arch].grub_efi }}"
+
+- name: Dell OptiPlex UEFI Bug Workaround (Phantom Byte Symlink)
+  shell: >
+    ln -sfn "{{ selected_arch }}/{{ boot_files[selected_arch].grub_filename }}"
+    "$(printf '{{ non_print_char }}')Onboard"
+  args:
+    chdir: "{{ base_dir }}/tftp"
+  when: selected_arch in ['x86_64', 'amd'] and optiplex_fix == True
 
 - name: Unpack Full ISO for HTTP Installation
   ansible.builtin.command:

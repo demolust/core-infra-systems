@@ -6,7 +6,10 @@
 
   tasks:
     - name: Stop Podman Services
-      ansible.builtin.include_tasks: tasks/container_cleanup.yml
+      block:
+        - name: Elevate and Include Container Tasks
+          ansible.builtin.include_tasks: tasks/container_cleanup.yml
+      become: true
 
     - name: Clean up Host Networking and Security
       block:
@@ -14,5 +17,5 @@
           ansible.builtin.include_tasks: tasks/host_cleanup.yml
       become: true
 
-    #- name: Cleanup Directory Structure
-    #  ansible.builtin.include_tasks: tasks/cleanup_dir_structure.yml
+    - name: Cleanup Directory Structure
+      ansible.builtin.include_tasks: tasks/cleanup_dir_structure.yml

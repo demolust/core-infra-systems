@@ -21,5 +21,8 @@
       ansible.builtin.include_tasks: tasks/gen_templates_pxe.yml
 
     - name: Start Podman Services
-      ansible.builtin.include_tasks: tasks/container_mgmt.yml
+      block:
+        - name: Elevate and Include Container Tasks
+          ansible.builtin.include_tasks: tasks/container_mgmt.yml
+      become: true
 

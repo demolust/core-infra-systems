@@ -12,13 +12,14 @@
     pod: pxe_pod
     state: started
     recreate: true
+    privileged: true
     cap_add:
       - NET_ADMIN
       - NET_BIND_SERVICE
       - NET_RAW
     volumes:
-      - "{{ base_dir }}/dnsmasq.conf:/etc/dnsmasq.conf:Z,U"
-      - "{{ base_dir }}/tftp:/var/lib/tftpboot:Z,U"
+      - "{{ base_dir }}/dnsmasq.conf:/etc/dnsmasq.conf:Z"
+      - "{{ base_dir }}/tftp:/var/lib/tftpboot:Z"
 
 - name: Run Nginx Container
   containers.podman.podman_container:
@@ -27,6 +28,7 @@
     pod: pxe_pod
     state: started
     recreate: true
+    privileged: true
     volumes:
-      - "{{ base_dir }}/nginx.conf:/etc/nginx/nginx.conf:ro,Z,U"
-      - "{{ base_dir }}/www:/usr/share/nginx/html:ro,Z,U"
+      - "{{ base_dir }}/nginx.conf:/etc/nginx/nginx.conf:ro,Z"
+      - "{{ base_dir }}/www:/usr/share/nginx/html:ro,Z"

@@ -7,18 +7,18 @@
 
 - name: Remove HTTP directory structure
   ansible.builtin.command:
-  cmd: "rm -rf {{ base_dir }}/www/{{ selected_arch }}"
+    cmd: "rm -rf {{ base_dir }}/www/{{ selected_arch }}"
   args:
     removes: "{{ base_dir }}/www/{{ selected_arch }}"
 
 - name: Remove isos directory structure
   ansible.builtin.command:
-  cmd: "rm -rf {{ base_dir }}/isos/"
+    cmd: "rm -rf {{ base_dir }}/isos/"
   args:
     removes: "{{ base_dir }}/isos/"
 
 - name: Remove PXE directory structure
-  ansible.builtin.file:
-    path: "{{ base_dir }}"
-    state: absent
-    mode: '0755'
+  ansible.builtin.command:
+    cmd: "rm -rf {{ base_dir }}"
+  args:
+    removes: "{{ base_dir }}"

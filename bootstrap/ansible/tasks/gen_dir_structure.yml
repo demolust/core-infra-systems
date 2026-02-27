@@ -1,7 +1,13 @@
 ---
-- name: Remove PXE directory structure
+- name: Create PXE directory structure
   ansible.builtin.file:
     path: "{{ base_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create isos directory structure
+  ansible.builtin.file:
+    path: "{{ base_dir }}/isos"
     state: directory
     mode: '0755'
 

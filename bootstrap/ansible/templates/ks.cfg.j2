@@ -20,7 +20,7 @@ if [ -b "/dev/nvme0n1" ]; then
 elif [ -b "/dev/sda" ]; then
     TARGET_DRIVE="sda"
 else
-    TARGET_DRIVE=$(lsblk -ndo NAME | grep -vE "loop|sr" | head -n1)
+    TARGET_DRIVE=$(lsblk -ndo NAME | grep -vE "loop|sr|zram" | head -n1)
 fi
 
 # Save target device for the main installer
