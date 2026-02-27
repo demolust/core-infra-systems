@@ -74,7 +74,7 @@
 
 - name: Add temporary bootstrap IP
   ansible.builtin.command:
-    cmd: "ip addr add {{ bootstrap_ip }}/24 dev {{ bootstrap_interface }}"
+    cmd: "ip addr add {{ bootstrap_ip }}/{{ bootstrap_subnet}} dev {{ bootstrap_interface }}"
   register: add_ip
   failed_when:
     - add_ip.rc != 0

@@ -49,7 +49,7 @@
 
 - name: Remove temporary bootstrap IP
   ansible.builtin.command:
-    cmd: "ip addr del {{ bootstrap_ip }}/24 dev {{ bootstrap_interface }}"
+    cmd: "ip addr del {{ bootstrap_ip }}/{{ bootstrap_subnet }} dev {{ bootstrap_interface }}"
   register: del_ip
   failed_when:
     - del_ip.rc != 0
