@@ -1,0 +1,22 @@
+#!ipxe
+
+# Ensure the network interface is up
+dhcp
+set base-url http://{{ bootstrap_ip }}:{{ pxe_http_port }}
+
+:start
+menu {{ os_base }} {{ version }} Installer ({{ selected_arch }})
+item --gap --             -----------------------------------------
+item install              Install {{ os_base }} {{ version }}
+item shell                iPXE Shell
+choose --default install --timeout 5000 target && goto ${target}
+
+:install
+echo Loading {{ os_base }} {{ version }} Kernel...
+kernel ${base-url}/{{ selected_arch }}/images/pxeboot/vmlinuz inst.ks=http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/ks.cfg inst.stage2=http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/ ip=dhcp
+initrd ${base-url}/{{ selected_arch }}/images/pxeboot/initrd.img
+echo Booting...
+boot
+
+:shell
+shell

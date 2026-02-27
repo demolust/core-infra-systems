@@ -9,6 +9,6 @@
 
 - name: Ensure architecture directory exists
   ansible.builtin.file:
-    path: "{{ base_dir }}/www/repo/{{ selected_arch }}"
+    path: "{{ base_dir }}/www/{{ selected_arch }}"
     state: directory
     mode: '0755'

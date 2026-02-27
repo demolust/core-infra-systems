@@ -1,0 +1,32 @@
+# Only listen on the defined interface
+interface={{ bootstrap_interface }}
+bind-interfaces
+
+# Disable DNS functionality (since only need DHCP/TFTP)
+port=0
+
+# DHCP Range (Isolated/Direct Connect)
+dhcp-range=192.168.100.50,192.168.100.150,12h
+
+# Identify Architectures
+dhcp-match=set:x86_64,option:client-arch,7
+dhcp-match=set:x86_64,option:client-arch,9
+dhcp-match=set:aarch64,option:client-arch,11
+
+dhcp-userclass=set:is_ipxe,iPXE
+dhcp-boot=tag:is_ipxe,http://{{ bootstrap_ip }}/{{ selected_arch }}/boot.ipxe
+
+# Assign Bootloader based on Architecture + SB Variable
+{% if sb_enabled -%}
+  # Secure Boot: Hand out Shim (GRUB will look for grub.cfg in the same TFTP folder)
+  dhcp-boot=tag:x86_64,tag:!is_ipxe,x86_64/{{ boot_files['x86_64'].shim }}
+  dhcp-boot=tag:aarch64,tag:!is_ipxe,aarch64/{{ boot_files['aarch64'].shim }}
+{%- else -%}
+  # Non-Secure Boot: Hand out the iPXE binary
+  dhcp-boot=tag:x86_64,tag:!is_ipxe,x86_64/ipxe.efi
+  dhcp-boot=tag:aarch64,tag:!is_ipxe,aarch64/ipxe.efi
+{%- endif %}
+
+# TFTP Setup
+enable-tftp
+tftp-root=/var/lib/tftpboot

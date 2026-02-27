@@ -1,0 +1,7 @@
+set default="0"
+set timeout=5
+
+menuentry 'Install {{ os_base }} {{ version }} (Secure Boot)' --class fedora --class gnu-linux --class gnu --class os {
+    linux /{{ selected_arch }}/vmlinuz inst.ks=http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/ks.cfg inst.stage2=http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/ ip=dhcp
+    initrd /{{ selected_arch }}/initrd.img
+}

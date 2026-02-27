@@ -1,12 +1,25 @@
 ---
 - name: Set variables for the rest of the run
   ansible.builtin.set_fact:
-    alma_version: "9"
+    os_base: "AlmaLinux"
+    base_url: "repo.almalinux.org/almalinux"
+    version: "9"
     iso_type: "dvd"
+    boot_files:
+      x86_64:
+        efi_loader: "EFI/BOOT/BOOTX64.EFI"
+        grub_efi: "EFI/BOOT/grubx64.efi"
+        shim: "BOOTX64.EFI"
+        ipxe_arch: "x86_64-efi"
+      aarch64:
+        efi_loader: "EFI/BOOT/BOOTAA64.EFI"
+        grub_efi: "EFI/BOOT/grubaa64.efi"
+        shim: "BOOTAA64.EFI"
+        ipxe_arch: "arm64-efi"
 
 - name: Set derived variables 1
   ansible.builtin.set_fact:
-    remote_iso_name: "AlmaLinux-{{ alma_version }}-latest-{{ selected_arch }}-{{ iso_type }}.iso"
+    remote_iso_name: "{{ os_base }}-{{ version }}-latest-{{ selected_arch }}-{{ iso_type }}.iso"
 
 - name: Set derived variables 2
   ansible.builtin.set_fact:
@@ -15,13 +28,13 @@
 - name: Extract SHA256 hash for the ISO
   ansible.builtin.set_fact:
     target_hash: >-
-      {{ lookup('url', 'https://repo.almalinux.org/almalinux/{}/isos/{}/CHECKSUM'.format(alma_version, selected_arch), split_lines=False)
+      {{ lookup('url', 'https://{}/{}/isos/{}/CHECKSUM'.format(base_url, version, selected_arch), split_lines=False)
         | regex_search('SHA256 \(' ~ (remote_iso_name | regex_escape) ~ '\) = ([a-f0-9]{64})', '\1')
         | first }}
 
-- name: Download the latest AlmaLinux {{ alma_version }} ISO
+- name: Downloading the latest {{ os_base }} {{ version }} ISO
   ansible.builtin.get_url:
-    url: "https://repo.almalinux.org/almalinux/{{ alma_version }}/isos/{{ selected_arch }}/{{ remote_iso_name }}"
+    url: "https://{{ base_url }}/{{ version }}/isos/{{ selected_arch }}/{{ remote_iso_name }}"
     dest: "{{ dest_path }}"
     checksum: "sha256:{{ target_hash }}"
     mode: '0644'
@@ -39,18 +52,18 @@
     files:
       - "images/pxeboot/vmlinuz"
       - "images/pxeboot/initrd.img"
-      - "{{ 'EFI/BOOT/BOOTX64.EFI' if selected_arch == 'x86_64' else 'EFI/BOOT/BOOTAA64.EFI' }}"
-      - "{{ 'EFI/BOOT/grubx64.efi' if selected_arch == 'x86_64' else 'EFI/BOOT/grubaa64.efi' }}"
+      - "{{ boot_files[selected_arch].efi_loader }}"
+      - "{{ boot_files[selected_arch].grub_efi }}"
 
 - name: Unpack Full ISO for HTTP Installation
   ansible.builtin.command:
-    cmd: "7z x {{ dest_path }} -o{{ base_dir }}/www/repo/{{ selected_arch }}/ -y"
+    cmd: "7z x {{ dest_path }} -o{{ base_dir }}/www/{{ selected_arch }}/ -y"
   args:
-    creates: "{{ base_dir }}/www/repo/{{ selected_arch }}/BaseOS"
+    creates: "{{ base_dir }}/www/{{ selected_arch }}/BaseOS"
 
 - name: Download the latest iPXE files
   ansible.builtin.get_url:
-    url: "https://boot.ipxe.org/{{ 'x86_64-efi' if selected_arch == 'x86_64' else 'arm64-efi' }}/ipxe.efi"
+    url: "https://boot.ipxe.org/{{ boot_files[selected_arch].ipxe_arch }}/ipxe.efi"
     dest: "{{ base_dir }}/tftp/{{ selected_arch }}/ipxe.efi"
     mode: '0644'
     force: no
