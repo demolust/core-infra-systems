@@ -51,3 +51,33 @@
     action: insert
   loop: "{{ bootstrap_services }}"
   when: ansible_os_family not in ["Debian", "RedHat"]
+
+- name: Install ISO dependencies (Debian/Ubuntu)
+  become: true
+  ansible.builtin.apt:
+    name:
+      - p7zip-full
+      - genisoimage
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Install ISO dependencies (Fedora/RedHat)
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - p7zip
+      - p7zip-plugins
+      - genisoimage
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Add temporary bootstrap IP
+  ansible.builtin.command:
+    cmd: "ip addr add {{ bootstrap_ip }}/24 dev {{ bootstrap_interface }}"
+  register: add_ip
+  failed_when:
+    - add_ip.rc != 0
+    - "'File exists' not in add_ip.stderr"
+    - "'Error: ipv4: Address already assigned' not in add_ip.stderr"
+  changed_when: add_ip.rc == 0

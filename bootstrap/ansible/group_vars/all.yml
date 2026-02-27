@@ -1,5 +1,5 @@
 ---
-bootstrap_interface: "{{ lookup('env', 'BOOTSTRAP_INT') | default('eth0', true) }}"
+bootstrap_interface: "{{ lookup('env', 'BOOTSTRAP_INT') | default('enp1s0f0', true) }}"
 bootstrap_ip: "192.168.100.1"
 pxe_http_port: "80"
 sb_enabled: "{{ lookup('env', 'TARGET_SB_ENABLED') | default('False') | bool }}"

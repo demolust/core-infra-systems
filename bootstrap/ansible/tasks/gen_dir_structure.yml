@@ -1,13 +1,11 @@
 ---
 - name: Create TFTP directory structure
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ base_dir }}/tftp/{{ selected_arch }}"
     state: directory
     mode: '0755'
-  loop:
-    - "{{ base_dir }}/tftp/{{ selected_arch }}"
 
-- name: Ensure architecture directory exists
+- name: Create HTTP directory structure
   ansible.builtin.file:
     path: "{{ base_dir }}/www/{{ selected_arch }}"
     state: directory

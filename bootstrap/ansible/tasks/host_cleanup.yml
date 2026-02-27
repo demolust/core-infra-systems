@@ -16,12 +16,7 @@
     state: present
     sysctl_set: true
 
-- name: Ensure the default firewall is installed
-  ansible.builtin.package:
-    name: "{{ 'ufw' if ansible_os_family == 'Debian' else 'firewalld' }}"
-    state: present
-
-- name: Open ports on UFW
+- name: Close ports on UFW
   community.general.ufw:
     rule: delete
     # Use name if it exists, otherwise use port
@@ -31,7 +26,7 @@
   loop: "{{ bootstrap_services }}"
   when: ansible_os_family == "Debian"
 
-- name: Open ports on firewalld
+- name: Close ports on firewalld
   ansible.posix.firewalld:
     # Firewalld prefers the 'service' parameter for names
     service: "{{ item.name | default(omit) }}"
@@ -42,7 +37,7 @@
   loop: "{{ bootstrap_services }}"
   when: ansible_os_family == "RedHat"
 
-- name: Open ports via iptables
+- name: Close ports via iptables
   ansible.builtin.iptables:
     chain: INPUT
     protocol: "{{ item.proto }}"
@@ -51,3 +46,13 @@
     action: remove
   loop: "{{ bootstrap_services }}"
   when: ansible_os_family not in ["Debian", "RedHat"]
+
+- name: Remove temporary bootstrap IP
+  ansible.builtin.command:
+    cmd: "ip addr del {{ bootstrap_ip }}/24 dev {{ bootstrap_interface }}"
+  register: del_ip
+  failed_when:
+    - del_ip.rc != 0
+    - "'Cannot assign requested address' not in del_ip.stderr"
+    - "'Error: ipv4: Address not found' not in del_ip.stderr"
+  changed_when: del_ip.rc == 0

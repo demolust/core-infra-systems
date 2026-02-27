@@ -5,7 +5,7 @@
   gather_facts: true
 
   tasks:
-    - name: Ensure Directory Structure
+    - name: Creation of Directory Structure
       ansible.builtin.include_tasks: tasks/gen_dir_structure.yml
 
     - name: Prepare Host Networking and Security
