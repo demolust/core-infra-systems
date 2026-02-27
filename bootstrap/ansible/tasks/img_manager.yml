@@ -4,10 +4,13 @@
     alma_version: "9"
     iso_type: "dvd"
 
-- name: Set derived variables
+- name: Set derived variables 1
   ansible.builtin.set_fact:
     remote_iso_name: "AlmaLinux-{{ alma_version }}-latest-{{ selected_arch }}-{{ iso_type }}.iso"
-    dest_path: "{{ base_dir }}/isos/alma9.iso"
+
+- name: Set derived variables 2
+  ansible.builtin.set_fact:
+    dest_path: "{{ base_dir }}/isos/{{ remote_iso_name }}"
 
 - name: Extract SHA256 hash for the ISO
   ansible.builtin.set_fact:
@@ -36,7 +39,7 @@
     files:
       - "images/pxeboot/vmlinuz"
       - "images/pxeboot/initrd.img"
-      - "{{ 'EFI/BOOT/shimx64.efi' if selected_arch == 'x86_64' else 'EFI/BOOT/shimaa64.efi' }}"
+      - "{{ 'EFI/BOOT/BOOTX64.EFI' if selected_arch == 'x86_64' else 'EFI/BOOT/BOOTAA64.EFI' }}"
       - "{{ 'EFI/BOOT/grubx64.efi' if selected_arch == 'x86_64' else 'EFI/BOOT/grubaa64.efi' }}"
 
 - name: Unpack Full ISO for HTTP Installation
@@ -44,3 +47,10 @@
     cmd: "7z x {{ dest_path }} -o{{ base_dir }}/www/repo/{{ selected_arch }}/ -y"
   args:
     creates: "{{ base_dir }}/www/repo/{{ selected_arch }}/BaseOS"
+
+- name: Download the latest iPXE files
+  ansible.builtin.get_url:
+    url: "https://boot.ipxe.org/{{ 'x86_64-efi' if selected_arch == 'x86_64' else 'arm64-efi' }}/ipxe.efi"
+    dest: "{{ base_dir }}/tftp/{{ selected_arch }}/ipxe.efi"
+    mode: '0644'
+    force: no
