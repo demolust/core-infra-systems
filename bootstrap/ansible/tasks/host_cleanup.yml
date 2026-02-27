@@ -12,7 +12,7 @@
 - name: Allow rootless user to bind to privileged ports
   ansible.posix.sysctl:
     name: net.ipv4.ip_unprivileged_port_start
-    value: '0'
+    value: '1024'
     state: present
     sysctl_set: true
 
@@ -23,7 +23,7 @@
 
 - name: Open ports on UFW
   community.general.ufw:
-    rule: allow
+    rule: delete
     # Use name if it exists, otherwise use port
     name: "{{ item.name | default(omit) }}"
     port: "{{ item.port if item.name is not defined else omit }}"
@@ -37,7 +37,7 @@
     service: "{{ item.name | default(omit) }}"
     port: "{{ (item.port + '/' + item.proto) if item.name is not defined else omit }}"
     permanent: true
-    state: enabled
+    state: disabled
     immediate: true
   loop: "{{ bootstrap_services }}"
   when: ansible_os_family == "RedHat"
@@ -48,6 +48,6 @@
     protocol: "{{ item.proto }}"
     destination_port: "{{ item.port }}"
     jump: ACCEPT
-    action: insert
+    action: remove
   loop: "{{ bootstrap_services }}"
   when: ansible_os_family not in ["Debian", "RedHat"]

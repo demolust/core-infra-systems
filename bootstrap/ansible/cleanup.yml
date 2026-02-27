@@ -1,0 +1,12 @@
+---
+- name: Cleanup of the PXE setup
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  tasks:
+    - name: Clean up Host Networking and Security
+      block:
+        - name: Elevate and Include Host Cleanup Tasks
+          ansible.builtin.include_tasks: tasks/host_cleanup.yml
+      become: true

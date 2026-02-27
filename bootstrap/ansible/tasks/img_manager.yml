@@ -38,7 +38,7 @@
     dest: "{{ dest_path }}"
     checksum: "sha256:{{ target_hash }}"
     mode: '0644'
-    force: no
+    force: false
   register: download_result
 
 - name: Show download status
@@ -66,4 +66,4 @@
     url: "https://boot.ipxe.org/{{ boot_files[selected_arch].ipxe_arch }}/ipxe.efi"
     dest: "{{ base_dir }}/tftp/{{ selected_arch }}/ipxe.efi"
     mode: '0644'
-    force: no
+    force: false
