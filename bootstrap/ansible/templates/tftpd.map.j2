@@ -1,0 +1,23 @@
+# tftpd.map.j2
+# Regex rules to intercept and fix broken UEFI PXE paths
+
+{% if selected_arch == 'x86_64' %}
+{% set grub_file = 'grubx64.efi' %}
+{% set shim_file = 'BOOTX64.EFI' %}
+{% elif selected_arch == 'aarch64' %}
+{% set grub_file = 'grubaa64.efi' %}
+{% set shim_file = 'BOOTAA64.EFI' %}
+{% endif %}
+
+# 0. Handle Windows/UEFI backslashes first to normalize the string
+rg \\ /
+
+# 1. Catch "Onboard" (anchored to the start)
+ri Onboard.* {{ selected_arch }}/{{ grub_file }}
+
+# 2. Trick the revocation check by feeding it the Shim binary
+ri ^revocations\.efi.* {{ selected_arch }}/{{ shim_file }}
+
+# 3. Catch strictly stripped files (anchored so it doesn't double-trigger)
+ri ^{{ grub_file }}.* {{ selected_arch }}/{{ grub_file }}
+ri ^grub\.cfg.* {{ selected_arch }}/grub.cfg

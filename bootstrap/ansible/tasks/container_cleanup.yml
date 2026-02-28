@@ -5,6 +5,7 @@
     state: absent
   loop:
     - pxe_dnsmasq
+    - pxe_tftp
     - pxe_http
 
 - name: Remove the PXE Pod

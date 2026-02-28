@@ -11,6 +11,12 @@
     dest: "{{ base_dir }}/nginx.conf"
     mode: '0644'
 
+- name: Generate nginx configuration from template
+  ansible.builtin.template:
+    src: tftpd.map.j2
+    dest: "{{ base_dir }}/tftpd.map"
+    mode: '0644'
+
 - name: Deploy GRUB config for Secure Boot
   ansible.builtin.template:
     src: grub.cfg.j2

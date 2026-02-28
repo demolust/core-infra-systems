@@ -19,23 +19,23 @@ dhcp-boot=tag:is_ipxe,http://{{ bootstrap_ip }}/{{ selected_arch }}/boot.ipxe
 
 # Assign Bootloader based on Architecture + SB Variable
 {% if sb_enabled -%}
-  dhcp-boot=tag:x86_64,tag:!is_ipxe,/x86_64/{{ boot_files['x86_64'].shim }},{{ bootstrap_ip }},{{ bootstrap_ip }}
-  dhcp-boot=tag:aarch64,tag:!is_ipxe,/aarch64/{{ boot_files['aarch64'].shim }},{{ bootstrap_ip }},{{ bootstrap_ip }}
+  dhcp-boot=tag:x86_64,tag:!is_ipxe,x86_64/{{ boot_files['x86_64'].shim }},{{ bootstrap_ip }},{{ bootstrap_ip }}
+  dhcp-boot=tag:aarch64,tag:!is_ipxe,aarch64/{{ boot_files['aarch64'].shim }},{{ bootstrap_ip }},{{ bootstrap_ip }}
 {%- else -%}
-  dhcp-boot=tag:x86_64,tag:!is_ipxe,/x86_64/ipxe.efi,{{ bootstrap_ip }},{{ bootstrap_ip }}
-  dhcp-boot=tag:aarch64,tag:!is_ipxe,/aarch64/ipxe.efi,{{ bootstrap_ip }},{{ bootstrap_ip }}
+  dhcp-boot=tag:x86_64,tag:!is_ipxe,x86_64/ipxe.efi,{{ bootstrap_ip }},{{ bootstrap_ip }}
+  dhcp-boot=tag:aarch64,tag:!is_ipxe,aarch64/ipxe.efi,{{ bootstrap_ip }},{{ bootstrap_ip }}
 {%- endif %}
 
 # Force a safe MTU
 dhcp-option=26,1460
 
 # TFTP Setup
-enable-tftp
-tftp-root=/var/lib/tftpboot
+#enable-tftp
+#tftp-root=/var/lib/tftpboot
 # Add this to handle finicky UEFI clients that abort on minor errors
-tftp-no-fail
+#tftp-no-fail
 # Disable blocksize negotiation to prevent UEFI network stack crashes
-tftp-no-blocksize
+#tftp-no-blocksize
 
 # Enable logging
 log-facility=-

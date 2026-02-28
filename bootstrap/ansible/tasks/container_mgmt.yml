@@ -19,7 +19,24 @@
       - NET_RAW
     volumes:
       - "{{ base_dir }}/dnsmasq.conf:/etc/dnsmasq.conf:Z"
+
+- name: Run TFTP Container (Alpine)
+  containers.podman.podman_container:
+    name: pxe_tftp
+    image: docker.io/library/alpine:latest
+    pod: pxe_pod
+    state: started
+    recreate: true
+    privileged: true
+    cap_add:
+      - NET_BIND_SERVICE
+    command:
+      - /bin/sh
+      - "-c"
+      - "apk add --no-cache tftp-hpa && { syslogd -n -O /dev/stdout & } && exec /usr/sbin/in.tftpd --foreground -vvv --address 0.0.0.0:69 --map-file /etc/tftpd.map --secure /var/lib/tftpboot"
+    volumes:
       - "{{ base_dir }}/tftp:/var/lib/tftpboot:Z"
+      - "{{ base_dir }}/tftpd.map:/etc/tftpd.map:ro,Z"
 
 - name: Run Nginx Container
   containers.podman.podman_container:
