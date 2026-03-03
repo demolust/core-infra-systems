@@ -13,7 +13,7 @@
 rg \\ /
 
 # 1. Catch "Onboard" (anchored to the start)
-ri Onboard.* {{ selected_arch }}/{{ grub_file }}
+rig .*Onboard.* {{ selected_arch }}/{{ grub_file }}
 
 # 2. Trick the revocation check by feeding it the Shim binary
 ri ^revocations\.efi.* {{ selected_arch }}/{{ shim_file }}
