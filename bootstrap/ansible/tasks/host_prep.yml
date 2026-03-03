@@ -10,6 +10,37 @@
       - {name: 'http', port: '80', proto: 'tcp'}
       - {name: 'https', port: '443', proto: 'tcp'}
 
+- name: Install dependencies (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name:
+      - p7zip-full
+      - genisoimage
+      - podman
+      - ufw
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Ensure EPEL is installed (RHEL/Rocky/Alma)
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution != "Fedora"
+
+- name: Install dependencies (Fedora/RedHat)
+  ansible.builtin.dnf:
+    name:
+      - p7zip
+      - p7zip-plugins
+      - genisoimage
+      - podman
+      - firewalld
+    state: present
+    update_cache: true
+  when: ansible_os_family == "RedHat"
+
 - name: Allow rootless user to bind to privileged ports
   ansible.posix.sysctl:
     name: net.ipv4.ip_unprivileged_port_start
@@ -17,24 +48,17 @@
     state: present
     sysctl_set: true
 
-- name: Ensure the default firewall is installed
-  ansible.builtin.package:
-    name: "{{ 'ufw' if ansible_os_family == 'Debian' else 'firewalld' }}"
-    state: present
-
-- name: Open ports on UFW
+- name: Open ports via UFW
   community.general.ufw:
     rule: allow
-    # Use name if it exists, otherwise use port
     name: "{{ item.name | default(omit) }}"
     port: "{{ item.port if item.name is not defined else omit }}"
     proto: "{{ item.proto }}"
   loop: "{{ bootstrap_services }}"
   when: ansible_os_family == "Debian"
 
-- name: Open ports on firewalld
+- name: Open ports via firewalld
   ansible.posix.firewalld:
-    # Firewalld prefers the 'service' parameter for names
     service: "{{ item.name | default(omit) }}"
     port: "{{ (item.port + '/' + item.proto) if item.name is not defined else omit }}"
     permanent: true
@@ -52,26 +76,6 @@
     action: insert
   loop: "{{ bootstrap_services }}"
   when: ansible_os_family not in ["Debian", "RedHat"]
-
-- name: Install ISO dependencies (Debian/Ubuntu)
-  become: true
-  ansible.builtin.apt:
-    name:
-      - p7zip-full
-      - genisoimage
-    state: present
-    update_cache: true
-  when: ansible_os_family == "Debian"
-
-- name: Install ISO dependencies (Fedora/RedHat)
-  become: true
-  ansible.builtin.dnf:
-    name:
-      - p7zip
-      - p7zip-plugins
-      - genisoimage
-    state: present
-  when: ansible_os_family == "RedHat"
 
 - name: Add temporary bootstrap IP
   ansible.builtin.command:

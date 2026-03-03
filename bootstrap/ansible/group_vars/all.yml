@@ -20,5 +20,3 @@ admin_username: "{{ lookup('env', 'TARGET_HOST_ADMIN') | default('admin', true) 
 root_password_hash: "{{ lookup('env', 'TARGET_ROOT_PASSWORD_HASH') | default('', true) }}"
 admin_password_hash: "{{ lookup('env', 'TARGET_ADMIN_PASSWORD_HASH') | default('', true) }}"
 admin_ssh_pub_key: "{{ lookup('env', 'TARGET_ADMIN_SSH_PUB_KEY') | default('', true) }}"
-non_print_char: "{{ lookup('env', 'TARGET_NON_PRINT_CHAR') | default('', true) }}"
-optiplex_fix: "{{ lookup('env', 'TARGET_OPTIPLEX_FIX') | default('False') | bool }}"
