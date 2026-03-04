@@ -92,7 +92,8 @@
     - name: Insert NAT Rules
       ansible.builtin.blockinfile:
         path: /etc/ufw/before.rules
-        insertbefore: "^# Don't delete these "
+        insertbefore: BOF
+        marker: "# {mark} ANSIBLE MANAGED NAT RULES"
         block: |
           *nat
           :POSTROUTING ACCEPT [0:0]

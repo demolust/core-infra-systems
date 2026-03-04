@@ -1,5 +1,5 @@
 ---
-- name: Allow rootless user to bind to privileged ports
+- name: Deny rootless user to bind to privileged ports
   ansible.posix.sysctl:
     name: net.ipv4.ip_unprivileged_port_start
     value: '1024'
@@ -9,7 +9,6 @@
 - name: Close ports on UFW
   community.general.ufw:
     rule: delete
-    # Use name if it exists, otherwise use port
     name: "{{ item.name | default(omit) }}"
     port: "{{ item.port if item.name is not defined else omit }}"
     proto: "{{ item.proto }}"
@@ -18,7 +17,6 @@
 
 - name: Close ports on firewalld
   ansible.posix.firewalld:
-    # Firewalld prefers the 'service' parameter for names
     service: "{{ item.name | default(omit) }}"
     port: "{{ (item.port + '/' + item.proto) if item.name is not defined else omit }}"
     permanent: true
@@ -63,6 +61,7 @@
     - name: Remove NAT rules
       ansible.builtin.blockinfile:
         path: /etc/ufw/before.rules
+        marker: "# {mark} ANSIBLE MANAGED NAT RULES"
         state: absent
       notify: Reload UFW
   when: ansible_os_family == "Debian"
