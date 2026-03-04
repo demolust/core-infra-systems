@@ -1,2 +1,28 @@
 ---
+- name: Prepare Bootstrap Inventory
+  hosts: localhost
+  gather_facts: true
+  vars:
+    target_host_ip: "{{ lookup('env', 'TARGET_HOST_IP') }}"
+  tasks:
+    - name: Fail if variable is missing
+      ansible.builtin.fail:
+        msg: "Please set TARGET_HOST_IP env var first"
+      when: target_host_ip == ''
+
+    - name: Add the temp host to a virtual group
+      ansible.builtin.add_host:
+        name: "{{ target_host_ip }}"
+        groups: bootstrap_hosts
+        ansible_user: "{{ admin_username }}"
+        ansible_ssh_extra_args: '-o StrictHostKeyChecking=no'
+
 - name: Remote Target Host Setup
+  hosts: bootstrap_hosts
+  tasks:
+    - name: Install base apps
+      block:
+        - name: Elevate and Include Tagret Host base install
+          ansible.builtin.include_tasks: tasks/target_base_install.yml
+      become: true
+

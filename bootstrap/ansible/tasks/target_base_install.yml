@@ -1,0 +1,117 @@
+---
+- name: Ensure major dependencies are is installed (EPEL/config-manager)
+  ansible.builtin.dnf:
+    name:
+      - epel-release
+      - dnf-plugins-core
+    state: present
+    update_cache: true
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution != "Fedora"
+
+- name: Check if CRB is already enabled
+  shell: dnf repolist | grep -qi "^crb"
+  register: crb_check
+  failed_when: false
+  changed_when: false
+
+- name: Enable the CRB repository
+  command: dnf config-manager --set-enabled crb
+  register: crb_enable
+  when: crb_check.rc != 0
+
+- name: Install dependencies (Fedora/RedHat)
+  ansible.builtin.dnf:
+    name:
+      - dracut-config-rescue
+      - ibus
+      - ndctl
+      - parallel
+      - nmap
+      - util-linux
+      - hdparm
+      - nvme-cli
+      - sysstat
+      - fuse
+      - fuse3
+      - squashfuse
+      - tuned
+      - tuned-ppd
+      - upower
+      - podman
+      - podman-docker
+      - podman-compose
+      - firewalld
+      - acpid
+      - ltrace
+      - strace
+      - irqbalance
+      - rsyslog
+      - vim
+      - bc
+      - findutils
+      - lshw
+      - gawk
+      - openssl
+      - wget2
+      - curl
+      - jq
+      - yq
+      - zsh
+      - trash-cli
+      - ncdu
+      - ncurses
+      - fastfetch
+      - fdupes
+      - git
+      - tmux
+      - rpmconf
+      - lm_sensors
+      - htop
+      - btop
+      - powertop
+      - nvtop
+      - iotop-c
+      - fatrace
+      - libarchive
+      - unzip
+      - libzip
+      - lzop
+      - arj
+      - atool
+      - unrar
+      - p7zip
+      - p7zip-plugins
+      - pdftk-java
+      - pandoc
+      - poppler
+      - mupdf
+      - ffmpegthumbnailer
+      - tumbler
+      - ImageMagick
+      - mediainfo
+      - perl-Image-ExifTool
+      - odt2txt
+      - elinks
+      - lynx
+      - w3m
+      - w3m-img
+      - gnome-epub-thumbnailer
+      - xmlstarlet
+      - libcdio
+      - genisoimage
+      - python3-virtualenv
+      - libreoffice-core
+      - libreoffice-pyuno
+      - ranger
+      - zoxide
+      - gdu
+      - git-delta
+      - fd-find
+      - bat
+      - tldr
+    state: present
+    update_cache: true
+  when: ansible_os_family == "RedHat"
+
