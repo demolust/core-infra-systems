@@ -1,21 +1,26 @@
 ---
-- name: Creathe the user group of {{ gen_user }}
+- name: Create|Update the user group of {{ admin_username }}
   ansible.builtin.group:
-    name: "{{ gen_user }}"
+    name: "{{ admin_username }}"
     state: present
 
-- name: Create the user {{ gen_user }} with zsh shell as default
+- name: Create the share group
+  ansible.builtin.group:
+    name: "share"
+    state: present
+
+- name: Create|Update the user {{ admin_username }}
   ansible.builtin.user:
-    name: "{{ gen_user }}"
-    password: "{{ gen_user_password_hash }}"
+    name: "{{ admin_username }}"
+    password: "{{ admin_password_hash }}"
     shell: /usr/bin/zsh
     create_home: true
-    groups: wheel,{{ gen_user }}
+    groups: wheel,share,{{ admin_username }}
     append: true
     state: present
 
 - name: Deploy SSH public key
   ansible.builtin.authorized_key:
-    user: "{{ gen_user }}"
+    user: "{{ admin_username }}"
     state: present
-    key: "{{ gen_user_ssh_key }}"
+    key: "{{ admin_ssh_pub_key }}"

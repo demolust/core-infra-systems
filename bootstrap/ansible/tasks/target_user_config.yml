@@ -4,34 +4,34 @@
     dotfiles_repo: "https://github.com/{{ github_user }}/dotfiles.git"
 
 - name: Clone dotfiles repository
-  become_user: "{{ gen_user }}"
+  become_user: "{{ admin_username }}"
   git:
     repo: "{{ dotfiles_repo }}"
-    dest: "{{ gen_user_home_dir }}/dotfiles"
+    dest: "{{ admin_username }}/dotfiles"
     version: main
 
 - name: Ensure ~/.config directory exists
-  become_user: "{{ gen_user }}"
+  become_user: "{{ admin_username }}"
   file:
-    path: "{{ gen_user_home_dir }}/.config"
+    path: "{{ admin_home_dir }}/.config"
     state: directory
     mode: '0755'
 
 - name: Ensure ~/.local directory exists
-  become_user: "{{ gen_user }}"
+  become_user: "{{ admin_username }}"
   file:
-    path: "{{ gen_user_home_dir }}/.local"
+    path: "{{ admin_username }}/.local"
     state: directory
     mode: '0755'
 
 - name: Sync .config files from repo
-  become_user: "{{ gen_user }}"
-  shell: "rsync -havzP {{ gen_user_home_dir }}/dotfiles/.config/ {{ gen_user_home_dir }}/.config/"
+  become_user: "{{ admin_username }}"
+  shell: "rsync -havzP {{ admin_username }}/dotfiles/.config/ {{ admin_username }}/.config/"
 
 - name: Sync .zsh* files from repo
-  become_user: "{{ gen_user }}"
-  shell: "rsync -havzP {{ gen_user_home_dir }}/dotfiles/.zsh* {{ gen_user_home_dir }}/"
+  become_user: "{{ admin_username }}"
+  shell: "rsync -havzP {{ admin_username }}/dotfiles/.zsh* {{ admin_username }}/"
 
 - name: Sync .local files from repo
-  become_user: "{{ gen_user }}"
-  shell: "rsync -havzP {{ gen_user_home_dir }}/dotfiles/.local/ {{ gen_user_home_dir }}/.local/"
+  become_user: "{{ admin_username }}"
+  shell: "rsync -havzP {{ admin_username }}/dotfiles/.local/ {{ admin_username }}/.local/"
