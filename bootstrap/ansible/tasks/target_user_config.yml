@@ -29,3 +29,83 @@
 
 - name: Sync .local files from repo
   shell: "rsync -havzP {{ admin_home_dir }}/dotfiles/.local/ {{ admin_home_dir }}/.local/"
+
+- name: Trigger Zsh setup and run install tools script
+  shell: |
+    source ~/.zshenv
+    source ~/.zshrc
+    # Comment for debugging as will hit GitHub API rate limit
+    #script-update-local-packages
+    echo 'hi'
+  args:
+    executable: /bin/zsh
+    chdir: "{{ admin_home_dir }}"
+  register: script_output
+
+- debug:
+    var: script_output.stdout_lines
+
+- name: Ensure nvim cache directory exists
+  file:
+    path: "{{ admin_home_dir }}/.cache/nvim"
+    state: directory
+
+- name: Install Python 3.12 via uv
+  command: uv python install 3.12
+  register: uv_install
+  changed_when: "'installed' in uv_install.stdout"
+
+- name: Create uv virtualenv for neovim
+  command: uv venv {{ admin_home_dir }}/.cache/nvim/uv-python --python 3.12
+  args:
+    creates: "{{ admin_home_dir }}/.cache/nvim/uv-python"
+
+- name: Install pynvim into uv venv for neovim
+  command: "uv pip install pynvim --python {{ admin_home_dir }}/.cache/nvim/uv-python/bin/python"
+
+- name: Install tree-sitter-cli via Cargo
+  community.general.cargo:
+    name: tree-sitter-cli
+    state: present
+
+- name: Install tmux tpm
+  shell: |
+    source ~/.zshenv
+    source ~/.zshrc
+    {{ admin_home_dir }}/dotfiles/scripts/install_tmux_tpm.sh
+  args:
+    executable: /bin/zsh
+    chdir: "{{ admin_home_dir }}"
+
+- name: Install unoserver
+  shell: |
+    source ~/.zshenv
+    source ~/.zshrc
+    {{ admin_home_dir }}/dotfiles/scripts/install_unoserver.sh
+  args:
+    executable: /bin/zsh
+    chdir: "{{ admin_home_dir }}"
+
+- name: Ensure the local installs directory exists
+  ansible.builtin.file:
+    path: ~/.local/installs
+    state: directory
+    mode: '0755'
+
+- name: Create the server settings file
+  ansible.builtin.copy:
+    dest: ~/.local/share/zsh/01-server_settings.zsh
+    content: |
+      typeset -U path PATH
+      path=(~/.local/installs/go/bin $path)
+      export PATH
+    mode: '0644'
+
+- name: Install latest go
+  shell: |
+    source ~/.zshenv
+    source ~/.zshrc
+    {{ admin_home_dir }}/dotfiles/scripts/install_go.sh
+  args:
+    executable: /bin/zsh
+    chdir: "{{ admin_home_dir }}"

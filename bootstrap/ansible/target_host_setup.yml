@@ -21,6 +21,8 @@
   hosts: bootstrap_hosts
   gather_facts: true
   become: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
   tasks:
     - name: Install base apps
       ansible.builtin.import_tasks: tasks/target_base_install.yml

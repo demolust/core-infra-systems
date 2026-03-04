@@ -21,7 +21,7 @@
   register: crb_enable
   when: crb_check.rc != 0
 
-- name: Install dependencies (Fedora/RedHat)
+- name: Install base packages (Fedora/RedHat)
   ansible.builtin.dnf:
     name:
       - dracut-config-rescue
@@ -112,7 +112,51 @@
       - fd-find
       - bat
       - tldr
+      - fzf
+      - procs
+      - rust
+      - cargo
+      - nodejs
+      - npm
+      - golang
+      - java-25-openjdk-headless
     state: present
     update_cache: true
   when: ansible_os_family == "RedHat"
 
+- name: Install devel packages (Fedora/RedHat)
+  ansible.builtin.dnf:
+    name:
+      - make
+      - cmake
+      - automake
+      - bison
+      - pkg-config
+      - ninja-build
+      - autoconf
+      - libtool
+      - patch
+      - gettext
+      - gcc
+      - gcc-c++
+      - clang
+      - clang-libs
+      - llvm-devel
+    state: present
+    update_cache: true
+  when: ansible_os_family == "RedHat"
+
+- name: Clone Neovim Source
+  git:
+    repo: https://github.com/neovim/neovim
+    dest: /tmp/neovim
+    version: stable
+    depth: 1
+
+- name: Build Neovim from source
+  shell: |
+    cd /tmp/neovim
+    make CMAKE_BUILD_TYPE=RelWithDebInfo
+    make install
+  args:
+    creates: /usr/local/bin/nvim
