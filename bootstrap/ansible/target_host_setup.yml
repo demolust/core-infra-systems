@@ -20,23 +20,15 @@
 - name: Remote Target Host Setup
   hosts: bootstrap_hosts
   gather_facts: true
+  become: true
   tasks:
     - name: Install base apps
-      block:
-        - name: Elevate for 'Install base apps'
-          ansible.builtin.include_tasks: tasks/target_base_install.yml
-      become: true
+      ansible.builtin.import_tasks: tasks/target_base_install.yml
 
     - name: Setup user
-      block:
-        - name: Elevate for 'Setup user'
-          ansible.builtin.include_tasks: tasks/target_user_setup.yml
-      become: true
+      ansible.builtin.import_tasks: tasks/target_user_setup.yml
 
     - name: Config user
-      block:
-        - name: Elevate as user for 'Config user'
-          ansible.builtin.include_tasks: tasks/target_user_config.yml
-      become_user: "{{ gen_user }}"
-      become: true
-
+      ansible.builtin.import_tasks: tasks/target_user_config.yml
+      vars:
+        ansible_become_user: "{{ gen_user }}"

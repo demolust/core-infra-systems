@@ -8,14 +8,14 @@
     - name: Stop Podman Services
       block:
         - name: Elevate for 'Stop Podman Services'
-          ansible.builtin.include_tasks: tasks/container_cleanup.yml
+          ansible.builtin.import_tasks: tasks/container_cleanup.yml
       become: true
 
     - name: Clean up Host Networking and Security
       block:
         - name: Elevate for 'Clean up Host Networking and Security'
-          ansible.builtin.include_tasks: tasks/host_cleanup.yml
+          ansible.builtin.import_tasks: tasks/host_cleanup.yml
       become: true
 
     - name: Cleanup Directory Structure
-      ansible.builtin.include_tasks: tasks/cleanup_dir_structure.yml
+      ansible.builtin.import_tasks: tasks/cleanup_dir_structure.yml
