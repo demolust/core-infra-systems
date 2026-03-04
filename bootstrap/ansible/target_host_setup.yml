@@ -27,3 +27,16 @@
           ansible.builtin.include_tasks: tasks/target_base_install.yml
       become: true
 
+    - name: Setup user
+      block:
+        - name: Elevate for 'Setup user'
+          ansible.builtin.include_tasks: tasks/target_user_setup.yml
+      become: true
+
+    - name: Config user
+      block:
+        - name: Elevate as user for 'Config user'
+          ansible.builtin.include_tasks: tasks/target_user_config.yml
+      become_user: "{{ gen_user }}"
+      become: true
+

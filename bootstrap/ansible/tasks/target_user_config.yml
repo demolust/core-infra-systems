@@ -1,0 +1,37 @@
+---
+- name: Set base envs
+  ansible.builtin.set_fact:
+    dotfiles_repo: "https://github.com/{{ github_user }}/dotfiles.git"
+
+- name: Clone dotfiles repository
+  become_user: "{{ gen_user }}"
+  git:
+    repo: "{{ dotfiles_repo }}"
+    dest: "{{ gen_user_home_dir }}/dotfiles"
+    version: main
+
+- name: Ensure ~/.config directory exists
+  become_user: "{{ gen_user }}"
+  file:
+    path: "{{ gen_user_home_dir }}/.config"
+    state: directory
+    mode: '0755'
+
+- name: Ensure ~/.local directory exists
+  become_user: "{{ gen_user }}"
+  file:
+    path: "{{ gen_user_home_dir }}/.local"
+    state: directory
+    mode: '0755'
+
+- name: Sync .config files from repo
+  become_user: "{{ gen_user }}"
+  shell: "rsync -havzP {{ gen_user_home_dir }}/dotfiles/.config/ {{ gen_user_home_dir }}/.config/"
+
+- name: Sync .zsh* files from repo
+  become_user: "{{ gen_user }}"
+  shell: "rsync -havzP {{ gen_user_home_dir }}/dotfiles/.zsh* {{ gen_user_home_dir }}/"
+
+- name: Sync .local files from repo
+  become_user: "{{ gen_user }}"
+  shell: "rsync -havzP {{ gen_user_home_dir }}/dotfiles/.local/ {{ gen_user_home_dir }}/.local/"

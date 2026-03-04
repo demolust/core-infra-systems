@@ -1,0 +1,21 @@
+---
+- name: Creathe the user group of {{ gen_user }}
+  ansible.builtin.group:
+    name: "{{ gen_user }}"
+    state: present
+
+- name: Create the user {{ gen_user }} with zsh shell as default
+  ansible.builtin.user:
+    name: "{{ gen_user }}"
+    password: "{{ gen_user_password_hash }}"
+    shell: /usr/bin/zsh
+    create_home: true
+    groups: wheel,{{ gen_user }}
+    append: true
+    state: present
+
+- name: Deploy SSH public key
+  ansible.builtin.authorized_key:
+    user: "{{ gen_user }}"
+    state: present
+    key: "{{ gen_user_ssh_key }}"
