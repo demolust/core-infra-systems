@@ -23,3 +23,13 @@ admin_ssh_pub_key: "{{ lookup('env', 'TARGET_ADMIN_SSH_PUB_KEY') | default('', t
 admin_username: "{{ lookup('env', 'TARGET_HOST_ADMIN') | default('admin', true) }}"
 admin_home_dir: "/home/{{ admin_username }}"
 github_user: "{{ lookup('env', 'GITHUB_USERNAME') | default('', true) }}"
+
+# Other used envs
+bootstrap_services:
+  - {port: '66', proto: 'udp'}
+  - {name: 'dhcp', port: '67', proto: 'udp'}
+  - {port: '68', proto: 'udp'}
+  - {name: 'tftp', port: '69', proto: 'udp'}
+  - {port: '4011', proto: 'udp'}
+  - {name: 'http', port: '80', proto: 'tcp'}
+  - {name: 'https', port: '443', proto: 'tcp'}

@@ -1,15 +1,4 @@
 ---
-- name: Set host variables for the rest of the run
-  ansible.builtin.set_fact:
-    bootstrap_services:
-      - {port: '66', proto: 'udp'}
-      - {name: 'dhcp', port: '67', proto: 'udp'}
-      - {port: '68', proto: 'udp'}
-      - {name: 'tftp', port: '69', proto: 'udp'}
-      - {port: '4011', proto: 'udp'}
-      - {name: 'http', port: '80', proto: 'tcp'}
-      - {name: 'https', port: '443', proto: 'tcp'}
-
 - name: Install dependencies (Debian/Ubuntu)
   ansible.builtin.apt:
     name:
