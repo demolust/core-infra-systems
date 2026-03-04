@@ -19,10 +19,11 @@
 
 - name: Remote Target Host Setup
   hosts: bootstrap_hosts
+  gather_facts: true
   tasks:
     - name: Install base apps
       block:
-        - name: Elevate and Include Tagret Host base install
+        - name: Elevate for 'Install base apps'
           ansible.builtin.include_tasks: tasks/target_base_install.yml
       become: true
 

@@ -1,5 +1,5 @@
 ---
-- name: Set variables for the rest of the run
+- name: Set base envs
   ansible.builtin.set_fact:
     os_base: "AlmaLinux"
     base_url: "repo.almalinux.org/almalinux"
@@ -17,11 +17,11 @@
         shim: "BOOTAA64.EFI"
         ipxe_arch: "arm64-efi"
 
-- name: Set derived variables 1
+- name: Set compund variables A
   ansible.builtin.set_fact:
     remote_iso_name: "{{ os_base }}-{{ version }}-latest-{{ selected_arch }}-{{ iso_type }}.iso"
 
-- name: Set derived variables 2
+- name: Set compund variables B
   ansible.builtin.set_fact:
     dest_path: "{{ base_dir }}/isos/{{ remote_iso_name }}"
 

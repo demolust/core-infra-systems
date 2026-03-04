@@ -10,7 +10,7 @@
 
     - name: Prepare Host Networking and Security
       block:
-        - name: Elevate and Include Host Prep Tasks
+        - name: Elevate for 'Prepare Host Networking and Security'
           ansible.builtin.include_tasks: tasks/host_prep.yml
       become: true
 
@@ -22,7 +22,7 @@
 
     - name: Start Podman Services
       block:
-        - name: Elevate and Include Container Tasks
+        - name: Elevate for 'Start Podman Services'
           ansible.builtin.include_tasks: tasks/container_mgmt.yml
       become: true
 
