@@ -26,3 +26,6 @@
           ansible.builtin.import_tasks: tasks/container_mgmt.yml
       become: true
 
+  handlers:
+    - name: Reload UFW
+      ansible.builtin.command: ufw reload

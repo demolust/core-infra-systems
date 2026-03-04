@@ -77,6 +77,41 @@
   loop: "{{ bootstrap_services }}"
   when: ansible_os_family not in ["Debian", "RedHat"]
 
+- name: Enable Kernel IP Forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    state: present
+    reload: true
+
+- name: Configure Firewalld Masquerade (NAT)
+  ansible.posix.firewalld:
+    masquerade: true
+    state: enabled
+    permanent: true
+    immediate: true
+  when: ansible_os_family == "RedHat"
+
+- name: Configure UFW NAT
+  block:
+    - name: Allow Forwarding
+      ansible.builtin.lineinfile:
+        path: /etc/default/ufw
+        regexp: '^DEFAULT_FORWARD_POLICY='
+        line: 'DEFAULT_FORWARD_POLICY="ACCEPT"'
+
+    - name: Insert NAT Rules
+      ansible.builtin.blockinfile:
+        path: /etc/ufw/before.rules
+        insertbefore: "^# Don't delete these "
+        block: |
+          *nat
+          :POSTROUTING ACCEPT [0:0]
+          -A POSTROUTING -o {{ wan_interface }} -j MASQUERADE
+          COMMIT
+      notify: Reload UFW
+  when: ansible_os_family == "Debian"
+
 - name: Add temporary bootstrap IP
   ansible.builtin.command:
     cmd: "ip addr add {{ bootstrap_ip }}/{{ bootstrap_subnet}} dev {{ bootstrap_interface }}"

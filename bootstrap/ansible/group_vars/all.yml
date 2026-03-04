@@ -1,4 +1,5 @@
 ---
+wan_interface: "{{ lookup('env', 'WAN_INT') | default('wlp2s0', true) }}"
 bootstrap_interface: "{{ lookup('env', 'BOOTSTRAP_INT') | default('enp1s0f0', true) }}"
 bootstrap_ip: "172.168.100.1"
 bootstrap_subnet: "24"

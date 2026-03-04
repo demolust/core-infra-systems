@@ -31,4 +31,4 @@
     - name: Config user
       ansible.builtin.import_tasks: tasks/target_user_config.yml
       vars:
-        ansible_become_user: "{{ gen_user }}"
+        ansible_become_user: "{{ admin_username }}"

@@ -9,6 +9,11 @@ port=0
 # DHCP Range (Isolated/Direct Connect)
 dhcp-range={{ bootstrap_ip_range_1 }},{{ bootstrap_ip_range_2 }},12h
 
+# Route target traffic to the Host IP (Gateway)
+dhcp-option=3,{{ bootstrap_ip }}
+# Provide DNS (Host IP if dnsmasq handles DNS, or public DNS)
+dhcp-option=6,8.8.8.8,1.1.1.1
+
 # Identify Architectures
 dhcp-match=set:x86_64,option:client-arch,7
 dhcp-match=set:x86_64,option:client-arch,9
