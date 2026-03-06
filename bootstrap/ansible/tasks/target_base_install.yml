@@ -142,6 +142,8 @@
       - clang
       - clang-libs
       - llvm-devel
+      - libevent-devel
+      - libutempter-devel
     state: present
     update_cache: true
   when: ansible_os_family == "RedHat"
@@ -160,3 +162,20 @@
     make install
   args:
     creates: /usr/local/bin/nvim
+
+- name: Clone tmux Source
+  git:
+    repo: https://github.com/tmux/tmux
+    dest: /tmp/tmux
+    version: 3.6a
+    depth: 1
+
+- name: Build tmux from source
+  shell: |
+    cd /tmp/tmux
+    sh autogen.sh
+    ./configure
+    make
+    make install
+  args:
+    creates: /usr/local/bin/tmux
