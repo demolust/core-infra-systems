@@ -80,6 +80,8 @@
       - libzip
       - lzop
       - arj
+      - transmission-cli
+      - poppler-utils
       - atool
       - unrar
       - p7zip
@@ -148,6 +150,7 @@
       - rpm-build
       - rpmdevtools
       - doxygen
+      - tk
     state: present
     update_cache: true
   when: ansible_os_family == "RedHat"
@@ -188,7 +191,8 @@
   ansible.builtin.set_fact:
     id3lib_srpm_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/source/tree/Packages/i/id3lib-3.8.3-61.fc43.src.rpm"
     id3v2_srpm_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/source/tree/Packages/i/id3v2-0.1.12-40.fc43.src.rpm"
-    build_dir: "/tmp/id3_build"
+    catdoc_srpm_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/source/tree/Packages/c/catdoc-0.95-28.fc43.src.rpm"
+    build_dir: "/tmp/builds"
 
 - name: Create build directory
   ansible.builtin.file:
@@ -206,18 +210,31 @@
     url: "{{ id3v2_srpm_url }}"
     dest: "{{ build_dir }}/id3v2.src.rpm"
 
+- name: Download catdoc SRPM
+  ansible.builtin.get_url:
+    url: "{{ catdoc_srpm_url }}"
+    dest: "{{ build_dir }}/catdoc.src.rpm"
+
 - name: Rebuild id3lib (Library)
   command: "rpmbuild --rebuild {{ build_dir }}/id3lib.src.rpm"
   args:
-    creates: "/root/rpmbuild/RPMS/x86_64/id3lib-3.8.3-61.el9.x86_64.rpm"
+    creates: "/root/rpmbuild/RPMS/{{ selected_arch }}/id3lib-3.8.3-61.el9.{{ selected_arch }}.rpm"
 
 - name: Install built id3lib packages
-  shell: "dnf install -y /root/rpmbuild/RPMS/x86_64/id3lib-*.rpm"
+  shell: "dnf install -y /root/rpmbuild/RPMS/{{ selected_arch }}/id3lib-*.rpm"
 
 - name: Rebuild id3v2 (Tool)
   command: "rpmbuild --rebuild {{ build_dir }}/id3v2.src.rpm"
   args:
-    creates: "/root/rpmbuild/RPMS/x86_64/id3v2-0.1.12-40.el9.x86_64.rpm"
+    creates: "/root/rpmbuild/RPMS/{{ selected_arch }}/id3v2-0.1.12-40.el9.{{ selected_arch }}.rpm"
 
 - name: Install built id3v2 package
-  shell: "dnf install -y /root/rpmbuild/RPMS/x86_64/id3v2-*.rpm"
+  shell: "dnf install -y /root/rpmbuild/RPMS/{{ selected_arch }}/id3v2-*.rpm"
+
+- name: Rebuild catdoc (Tool)
+  command: "rpmbuild --rebuild {{ build_dir }}/catdoc.src.rpm"
+  args:
+    creates: "/root/rpmbuild/RPMS/{{ selected_arch }}/catdoc-0.95-28.el9.{{ selected_arch }}.rpm"
+
+- name: Install built catdoc package
+  shell: "dnf install -y /root/rpmbuild/RPMS/{{ selected_arch }}/catdoc-*.rpm"
