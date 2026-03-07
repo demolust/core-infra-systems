@@ -13,7 +13,7 @@ arch_map:
   arm: "aarch64"
   aarch64: "aarch64"
 selected_arch: "{{ arch_map[lookup('env', 'TARGET_HOST_ARCH') | default('x86_64', true)] }}"
-base_dir: "{{ playbook_dir }}/../pxe-data"
+base_dir: "{{ playbook_dir | dirname }}/pxe-data"
 # Installation envs
 hostname: "{{ lookup('env', 'TARGET_HOST_NAME') | default('server-test.local', true) }}"
 timezone: "{{ lookup('env', 'TARGET_HOST_TZ') | default('America/Monterrey', true) }}"

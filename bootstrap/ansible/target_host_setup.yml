@@ -27,6 +27,9 @@
     - name: Install base apps
       ansible.builtin.import_tasks: tasks/target_base_install.yml
 
+    - name: Install main server apps
+      ansible.builtin.import_tasks: tasks/target_main_install.yml
+
     - name: Setup user
       ansible.builtin.import_tasks: tasks/target_user_setup.yml
 

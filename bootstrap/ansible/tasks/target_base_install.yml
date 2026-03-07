@@ -1,5 +1,5 @@
 ---
-- name: Ensure major dependencies are is installed (EPEL/config-manager)
+- name: Ensure major dependencies are installed (EPEL/config-manager)
   ansible.builtin.dnf:
     name:
       - epel-release
@@ -20,6 +20,11 @@
   command: dnf config-manager --set-enabled crb
   register: crb_enable
   when: crb_check.rc != 0
+
+- name: Enable Node.js 24 module stream
+  ansible.builtin.dnf:
+    name: "@nodejs:24"
+    state: present
 
 - name: Install base packages (Fedora/RedHat)
   ansible.builtin.dnf:
