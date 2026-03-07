@@ -3,7 +3,6 @@
   ansible.builtin.file:
     path: "{{ base_dir }}/tftp/{{ selected_arch }}"
     state: absent
-    mode: '0755'
 
 - name: Remove HTTP directory structure
   ansible.builtin.command:

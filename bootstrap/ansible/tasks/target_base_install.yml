@@ -144,6 +144,10 @@
       - llvm-devel
       - libevent-devel
       - libutempter-devel
+      - zlib-devel
+      - rpm-build
+      - rpmdevtools
+      - doxygen
     state: present
     update_cache: true
   when: ansible_os_family == "RedHat"
@@ -179,3 +183,41 @@
     make install
   args:
     creates: /usr/local/bin/tmux
+
+- name: Set id3v2 envs
+  ansible.builtin.set_fact:
+    id3lib_srpm_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/source/tree/Packages/i/id3lib-3.8.3-61.fc43.src.rpm"
+    id3v2_srpm_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/source/tree/Packages/i/id3v2-0.1.12-40.fc43.src.rpm"
+    build_dir: "/tmp/id3_build"
+
+- name: Create build directory
+  ansible.builtin.file:
+    path: "{{ build_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Download id3lib SRPM
+  ansible.builtin.get_url:
+    url: "{{ id3lib_srpm_url }}"
+    dest: "{{ build_dir }}/id3lib.src.rpm"
+
+- name: Download id3v2 SRPM
+  ansible.builtin.get_url:
+    url: "{{ id3v2_srpm_url }}"
+    dest: "{{ build_dir }}/id3v2.src.rpm"
+
+- name: Rebuild id3lib (Library)
+  command: "rpmbuild --rebuild {{ build_dir }}/id3lib.src.rpm"
+  args:
+    creates: "/root/rpmbuild/RPMS/x86_64/id3lib-3.8.3-61.el9.x86_64.rpm"
+
+- name: Install built id3lib packages
+  shell: "dnf install -y /root/rpmbuild/RPMS/x86_64/id3lib-*.rpm"
+
+- name: Rebuild id3v2 (Tool)
+  command: "rpmbuild --rebuild {{ build_dir }}/id3v2.src.rpm"
+  args:
+    creates: "/root/rpmbuild/RPMS/x86_64/id3v2-0.1.12-40.el9.x86_64.rpm"
+
+- name: Install built id3v2 package
+  shell: "dnf install -y /root/rpmbuild/RPMS/x86_64/id3v2-*.rpm"
