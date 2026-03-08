@@ -1,8 +1,10 @@
 ---
+admin_home_dir: "/home/{{ admin_username }}"
+github_user: "{{ lookup('env', 'GITHUB_USERNAME') | default('', true) }}"
+
 samba_workgroup: "WORKGROUP"
 samba_users_path: "/home"
 samba_spool_path: "/var/spool/samba"
-
 samba_share_group: "share"
 samba_custom_shares:
   - name: "data"

@@ -21,8 +21,6 @@ root_password_hash: "{{ lookup('env', 'TARGET_ROOT_PASSWORD_HASH') | default('',
 admin_password_hash: "{{ lookup('env', 'TARGET_ADMIN_PASSWORD_HASH') | default('', true) }}"
 admin_ssh_pub_key: "{{ lookup('env', 'TARGET_ADMIN_SSH_PUB_KEY') | default('', true) }}"
 admin_username: "{{ lookup('env', 'TARGET_HOST_ADMIN') | default('admin', true) }}"
-admin_home_dir: "/home/{{ admin_username }}"
-github_user: "{{ lookup('env', 'GITHUB_USERNAME') | default('', true) }}"
 
 # Other used envs
 bootstrap_services:

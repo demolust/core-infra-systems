@@ -27,5 +27,5 @@
       become: true
 
   handlers:
-    - name: Reload UFW
-      ansible.builtin.command: ufw reload
+    - name: Load Host Prep Handlers
+      ansible.builtin.import_tasks: handlers/host_prep_handlers.yml
