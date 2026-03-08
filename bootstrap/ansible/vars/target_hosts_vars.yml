@@ -1,0 +1,17 @@
+---
+samba_workgroup: "WORKGROUP"
+samba_users_path: "/home"
+samba_spool_path: "/var/spool/samba"
+
+samba_share_group: "share"
+samba_custom_shares:
+  - name: "data"
+    comment: "Restricted Data Share (Linux-style case sensitivity / Permissions: 664/775) For {{ admin_username }} and @{{ samba_share_group }}"
+    path: "/data"
+    write_list: "{{ admin_username }} @{{ samba_share_group }}"
+    force_group: "share"
+    guest_ok: "No"
+    case_sensitive: "True"
+    default_case: "lower"
+    preserve_case: "yes"
+    short_preserve_case: "yes"

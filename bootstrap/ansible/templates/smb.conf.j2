@@ -1,0 +1,72 @@
+# smb.conf - Managed by Ansible/Jinja2
+[global]
+  workgroup = {{ samba_workgroup | default('WORKGROUP') }}
+  passdb backend = tdbsam
+  printing = {{ samba_printing_system | default('cups') }}
+  printcap name = {{ samba_printing_system | default('cups') }}
+  printcap cache time = 750
+  cups options = raw
+  map to guest = Bad User
+  logon path = \\%L\profiles\.msprofile
+  logon home = \\%L\%U\.9xprofile
+  logon drive = P:
+  usershare allow guests = {{ samba_usershare_allow_guests | default('Yes') }}
+  smb3 unix extensions = {{ samba_unix_extensions | default('Yes') }}
+
+[homes]
+  comment = Home Directories
+  valid users = %S, %D%w%S
+  browseable = No
+  read only = No
+  inherit acls = Yes
+
+[profiles]
+  comment = Network Profiles Service
+  path = %H
+  read only = No
+  store dos attributes = Yes
+  create mask = 0600
+  directory mask = 0700
+
+[users]
+  comment = All users
+  path = {{ samba_users_path | default('/home') }}
+  read only = No
+  inherit acls = Yes
+  veto files = /aquota.user/groups/shares/
+
+[printers]
+  comment = All Printers
+  path = {{ samba_spool_path | default('/var/spool/samba') }}
+  printable = Yes
+  create mask = 0600
+  browseable = No
+
+[print$]
+  comment = Printer Drivers
+  path = {{ samba_driver_path | default('/var/lib/samba/drivers') }}
+  write list = @ntadmin root
+  force group = ntadmin
+  create mask = 0664
+  directory mask = 0775
+
+{# Custom Shares Loop #}
+{% for share in samba_custom_shares %}
+[{{ share.name }}]
+  comment = {{ share.comment }}
+  path = {{ share.path }}
+  write list = {{ share.write_list | default('') }}
+  force group = {{ share.force_group | default('nobody') }}
+  create mask = {{ share.create_mask | default('0664') }}
+  directory mask = {{ share.directory_mask | default('0775') }}
+  guest ok = {{ share.guest_ok | default('No') }}
+  read only = {{ share.read_only | default('No') }}
+  browseable = {{ share.browsable | default('Yes') }}
+  {% if share.case_sensitive is defined %}
+  case sensitive = {{ share.case_sensitive }}
+  default case = {{ share.default_case }}
+  preserve case = {{ share.preserve_case }}
+  short preserve case = {{ share.short_preserve_case }}
+  {% endif %}
+
+{% endfor %}

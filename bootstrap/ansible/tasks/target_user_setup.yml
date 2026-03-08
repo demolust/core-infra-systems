@@ -4,9 +4,9 @@
     name: "{{ admin_username }}"
     state: present
 
-- name: Create the share group
+- name: Create|Update the SAMBA {{ samba_share_group }} group
   ansible.builtin.group:
-    name: "share"
+    name: "{{ samba_share_group }}"
     state: present
 
 - name: Create|Update the user {{ admin_username }}
