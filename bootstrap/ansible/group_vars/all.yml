@@ -20,6 +20,7 @@ timezone: "{{ lookup('env', 'TARGET_HOST_TZ') | default('America/Monterrey', tru
 root_password_hash: "{{ lookup('env', 'TARGET_ROOT_PASSWORD_HASH') | default('', true) }}"
 admin_password_hash: "{{ lookup('env', 'TARGET_ADMIN_PASSWORD_HASH') | default('', true) }}"
 admin_ssh_pub_key: "{{ lookup('env', 'TARGET_ADMIN_SSH_PUB_KEY') | default('', true) }}"
+admin_samba_password: "{{ lookup('env', 'TARGET_ADMIN_SAMBA_PASSWORD_HASH') | default('', true) }}"
 admin_username: "{{ lookup('env', 'TARGET_HOST_ADMIN') | default('admin', true) }}"
 
 # Other used envs

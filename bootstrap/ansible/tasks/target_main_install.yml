@@ -1,2 +1,67 @@
 ---
+- name: Create directory structure for Samba
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: '0777'
+  loop: "{{ samba_custom_shares }}"
 
+- name: Install Samba packages (Fedora/RedHat)
+  ansible.builtin.dnf:
+    name:
+      - samba
+      - samba-client
+      - samba-common
+    state: present
+    update_cache: true
+  when: ansible_os_family == "RedHat"
+
+- name: Allow Samba service via firewalld
+  ansible.posix.firewalld:
+    service: samba
+    permanent: true
+    state: enabled
+    immediate: true
+  when: ansible_os_family == "RedHat"
+
+- name: Generate smb configuration from template
+  ansible.builtin.template:
+    src: smb.conf.j2
+    dest: "/etc/samba/smb.conf"
+    mode: '0644'
+
+#- name: Inject NTLM hash for Samba user
+#  ansible.builtin.shell: |
+#    pdbedit -a -u {{ item.name }} --set-nt-hash {{ item.password }}
+#  loop: "{{ samba_users }}"
+#  no_log: true
+#  register: pdb_result
+#  changed_when: "'User added' in pdb_result.stdout"
+
+- name: Set Samba password
+  ansible.builtin.shell: |
+    (echo "{{ item.password }}"; echo "{{ item.password }}") | smbpasswd -s -a {{ item.name }}
+  loop: "{{ samba_users }}"
+  #no_log: true
+  register: smb_result
+  changed_when: "'Added user' in smb_result.stdout"
+
+- name: Apply SELinux file context for Samba shares
+  community.general.sefcontext:
+    target: "{{ item.path }}(/.*)?"
+    setype: samba_share_t
+    state: present
+  loop: "{{ samba_custom_shares }}"
+  register: selinux_context
+  notify: "Run restorecon"
+  when: ansible_os_family == "RedHat"
+
+- name: Start and enable Samba services
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - smb
+    - nmb
+  when: ansible_os_family == "RedHat"

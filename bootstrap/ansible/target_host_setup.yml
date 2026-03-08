@@ -31,13 +31,17 @@
     - name: Install base apps
       ansible.builtin.import_tasks: tasks/target_base_install.yml
 
-    - name: Install main server apps
-      ansible.builtin.import_tasks: tasks/target_main_install.yml
-
     - name: Setup user
       ansible.builtin.import_tasks: tasks/target_user_setup.yml
+
+    - name: Install main server apps
+      ansible.builtin.import_tasks: tasks/target_main_install.yml
 
     - name: Config user
       ansible.builtin.import_tasks: tasks/target_user_config.yml
       vars:
         ansible_become_user: "{{ admin_username }}"
+
+  handlers:
+    - name: Load Target Host Handlers
+      ansible.builtin.import_tasks: handlers/target_host_handlers.yml

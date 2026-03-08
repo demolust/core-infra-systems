@@ -6,6 +6,11 @@ samba_workgroup: "WORKGROUP"
 samba_users_path: "/home"
 samba_spool_path: "/var/spool/samba"
 samba_share_group: "share"
+samba_users:
+  #- {name: "{{ admin_username }}", password: "{{ admin_samba_password }}"}
+  - {name: "{{ admin_username }}", password: "***REMOVED***"}
+  # - { name: "jsmith", password: "{{ vault_jsmith_hashed_pass }}" }
+  # - { name: "jsmith", password: "{{ vault_jsmith_pass }}" }
 samba_custom_shares:
   - name: "data"
     comment: "Restricted Data Share (Linux-style case sensitivity / Permissions: 664/775) For {{ admin_username }} and @{{ samba_share_group }}"
