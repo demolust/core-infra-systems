@@ -3,7 +3,9 @@
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: directory
-    mode: '0777'
+    owner: root
+    group: "{{ samba_share_group }}"
+    mode: '2770'
   loop: "{{ samba_custom_shares }}"
 
 - name: Install Samba packages (Fedora/RedHat)
@@ -55,6 +57,10 @@
   register: selinux_context
   notify: "Run restorecon"
   when: ansible_os_family == "RedHat"
+
+- name: "Run restorecon"
+  command: "restorecon -Rv {{ item.path }}"
+  loop: "{{ samba_custom_shares }}"
 
 - name: Start and enable Samba services
   service:

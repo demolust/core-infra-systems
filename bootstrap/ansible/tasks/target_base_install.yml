@@ -243,3 +243,9 @@
 
 - name: Install built catdoc package
   shell: "dnf install -y /root/rpmbuild/RPMS/{{ selected_arch }}/catdoc-*.rpm"
+
+- name: Create|Update the SAMBA {{ samba_share_group }} group
+  ansible.builtin.group:
+    name: "{{ samba_share_group }}"
+    state: present
+

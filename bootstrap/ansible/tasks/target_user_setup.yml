@@ -4,18 +4,13 @@
     name: "{{ admin_username }}"
     state: present
 
-- name: Create|Update the SAMBA {{ samba_share_group }} group
-  ansible.builtin.group:
-    name: "{{ samba_share_group }}"
-    state: present
-
 - name: Create|Update the user {{ admin_username }}
   ansible.builtin.user:
     name: "{{ admin_username }}"
     password: "{{ admin_password_hash }}"
     shell: /usr/bin/zsh
     create_home: true
-    groups: wheel,share,{{ admin_username }}
+    groups: wheel,{{ samba_share_group }},{{ admin_username }}
     append: true
     state: present
 

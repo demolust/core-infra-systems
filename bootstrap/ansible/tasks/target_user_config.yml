@@ -1,6 +1,7 @@
 ---
 - name: Set base envs
   ansible.builtin.set_fact:
+    rustup_sh_url: "https://sh.rustup.rs"
     dotfiles_repo: "https://github.com/{{ github_user }}/dotfiles.git"
 
 - name: Clone dotfiles repository
@@ -58,6 +59,31 @@
       path=(~/.local/installs/go/bin $path)
       export PATH
     mode: '0644'
+
+- name: Download rustup script
+  ansible.builtin.get_url:
+    url: "{{ rustup_sh_url }}"
+    dest: "/tmp/rustup.sh"
+    mode: "0755"
+
+- name: Run rustup.sh with non-interactive flag
+  ansible.builtin.shell: |
+    source ~/.zshenv
+    source ~/.zshrc
+    /tmp/rustup.sh -y
+  args:
+    executable: /bin/zsh
+    chdir: "{{ admin_home_dir }}"
+
+- name: Update rust to the latest version
+  ansible.builtin.shell: |
+    source ~/.zshenv
+    source ~/.zshrc
+    rustup default stable
+    rustup update
+  args:
+    executable: /bin/zsh
+    chdir: "{{ admin_home_dir }}"
 
 - name: Install latest go
   shell: |
