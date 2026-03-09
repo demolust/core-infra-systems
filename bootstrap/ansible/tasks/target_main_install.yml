@@ -5,7 +5,7 @@
     state: directory
     owner: root
     group: "{{ samba_share_group }}"
-    mode: '2770'
+    mode: "2770"
   loop: "{{ samba_custom_shares }}"
 
 - name: Install Samba packages (Fedora/RedHat)

@@ -55,18 +55,25 @@
 [{{ share.name }}]
   comment = {{ share.comment }}
   path = {{ share.path }}
+  # Strict 0770 Sync
   write list = {{ share.write_list | default('') }}
   force group = {{ share.force_group | default('nobody') }}
-  create mask = {{ share.create_mask | default('0664') }}
-  directory mask = {{ share.directory_mask | default('0775') }}
-  guest ok = {{ share.guest_ok | default('No') }}
-  read only = {{ share.read_only | default('No') }}
+  create mask = {{ share.create_mask | default('0660') }}
+  directory mask = {{ share.directory_mask | default('0770') }}
+  force create mode = {{ share.create_mask | default('0660') }}
+  force directory mode = {{ share.directory_mask | default('0770') }}
   browseable = {{ share.browsable | default('Yes') }}
-  {% if share.case_sensitive is defined %}
+  read only = {{ share.read_only | default('No') }}
+  guest ok = {{ share.guest_ok | default('No') }}
+  # Sync & Behavior
+  inherit permissions = {{ share.inherit_permissions | default('Yes') }}
+  nt acl support = {{ share.nt_acl_support | default('Yes') }}
+  change notify = {{ share.change_notify | default('Yes') }}
+  {% if share.case_sensitive is defined -%}
   case sensitive = {{ share.case_sensitive }}
   default case = {{ share.default_case }}
   preserve case = {{ share.preserve_case }}
   short preserve case = {{ share.short_preserve_case }}
-  {% endif %}
+  {%- endif %}
 
 {% endfor %}
