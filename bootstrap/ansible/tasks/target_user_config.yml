@@ -16,20 +16,44 @@
     state: directory
     mode: '0755'
 
+- name: Ensure systemd user directory exists
+  file:
+    path: "{{ admin_home_dir }}/.config/systemd/user/"
+    state: directory
+    mode: '0755'
+
 - name: Ensure ~/.local directory exists
   file:
     path: "{{ admin_home_dir }}/.local"
     state: directory
     mode: '0755'
 
+- name: Ensure XDG cargo bin directory exists
+  file:
+    path: "{{ admin_home_dir }}/.local/share/cargo/bin"
+    state: directory
+    mode: '0755'
+
+- name: Ensure XDG go bin directory exists
+  file:
+    path: "{{ admin_home_dir }}/.local/share/go/bin"
+    state: directory
+    mode: '0755'
+
+- name: Ensure the local installs directory exists
+  ansible.builtin.file:
+    path: ~/.local/installs
+    state: directory
+    mode: '0755'
+
 - name: Sync .config files from repo
   shell: "rsync -havzP {{ admin_home_dir }}/dotfiles/.config/ {{ admin_home_dir }}/.config/"
 
-- name: Sync .zsh* files from repo
-  shell: "rsync -havzP {{ admin_home_dir }}/dotfiles/.zsh* {{ admin_home_dir }}/"
-
 - name: Sync .local files from repo
   shell: "rsync -havzP {{ admin_home_dir }}/dotfiles/.local/ {{ admin_home_dir }}/.local/"
+
+- name: Sync .zsh* files from repo
+  shell: "rsync -havzP {{ admin_home_dir }}/dotfiles/.zsh* {{ admin_home_dir }}/"
 
 - name: Trigger Zsh setup
   shell: |
@@ -44,21 +68,6 @@
 
 - debug:
     var: script_output.stdout_lines
-
-- name: Ensure the local installs directory exists
-  ansible.builtin.file:
-    path: ~/.local/installs
-    state: directory
-    mode: '0755'
-
-- name: Create the server settings file
-  ansible.builtin.copy:
-    dest: ~/.local/share/zsh/01-server_settings.zsh
-    content: |
-      typeset -U path PATH
-      path=(~/.local/installs/go/bin $path)
-      export PATH
-    mode: '0644'
 
 - name: Download rustup script
   ansible.builtin.get_url:
@@ -85,6 +94,15 @@
     executable: /bin/zsh
     chdir: "{{ admin_home_dir }}"
 
+- name: Create the server settings file
+  ansible.builtin.copy:
+    dest: ~/.local/share/zsh/01-server_settings.zsh
+    content: |
+      typeset -U path PATH
+      path=(~/.local/installs/go/bin $path)
+      export PATH
+    mode: '0644'
+
 - name: Install latest go
   shell: |
     source ~/.zshenv
@@ -93,16 +111,6 @@
   args:
     executable: /bin/zsh
     chdir: "{{ admin_home_dir }}"
-
-- name: Ensure XDG cargo bin directory exists
-  file:
-    path: "{{ admin_home_dir }}/.local/share/cargo/bin"
-    state: directory
-
-- name: Ensure XDG go bin directory exists
-  file:
-    path: "{{ admin_home_dir }}/.local/share/go/bin"
-    state: directory
 
 - name: Trigger install tools script
   shell: |

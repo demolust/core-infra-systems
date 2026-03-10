@@ -19,3 +19,8 @@
     user: "{{ admin_username }}"
     state: present
     key: "{{ admin_ssh_pub_key }}"
+
+- name: Enable lingering for the user
+  command: "loginctl enable-linger {{ admin_username }}"
+  args:
+    creates: "/var/lib/systemd/linger/{{ admin_username }}"
