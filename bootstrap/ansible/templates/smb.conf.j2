@@ -55,7 +55,7 @@
 [{{ share.name }}]
   comment = {{ share.comment }}
   path = {{ share.path }}
-  # Strict 0770 Sync
+  # Permissions (Strict 0770 Sync) & Compatibility
   write list = {{ share.write_list | default('') }}
   force group = {{ share.force_group | default('nobody') }}
   create mask = {{ share.create_mask | default('0660') }}
@@ -64,11 +64,16 @@
   force directory mode = {{ share.directory_mask | default('0770') }}
   browseable = {{ share.browsable | default('Yes') }}
   read only = {{ share.read_only | default('No') }}
-  guest ok = {{ share.guest_ok | default('No') }}
-  # Sync & Behavior
-  inherit permissions = {{ share.inherit_permissions | default('Yes') }}
+  inherit permissions = {{ share.inherit_permissions | default('No') }}
   nt acl support = {{ share.nt_acl_support | default('Yes') }}
+  guest ok = {{ share.guest_ok | default('No') }}
+  # Client Caching|Sync & Responsiveness (Defaults of base config)
   change notify = {{ share.change_notify | default('Yes') }}
+  oplocks = {{ share.oplocks | default('Yes') }}
+  level2 oplocks = {{ share.level2_oplocks | default('Yes') }}
+  # Media Performance Tweaks (Defaults of base config)
+  read raw = {{ share.read_raw | default('Yes') }}
+  write raw = {{ share.write_raw | default('Yes') }}
   {% if share.case_sensitive is defined -%}
   case sensitive = {{ share.case_sensitive }}
   default case = {{ share.default_case }}
