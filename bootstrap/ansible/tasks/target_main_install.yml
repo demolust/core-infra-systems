@@ -5,7 +5,8 @@
     state: directory
     owner: root
     group: "{{ samba_share_group }}"
-    mode: "2770"
+    # Need other (Podman) to have execute
+    mode: '2775'
   loop: "{{ samba_custom_shares }}"
 
 - name: Install Samba packages (Fedora/RedHat)
@@ -70,4 +71,12 @@
   loop:
     - smb
     - nmb
+  when: ansible_os_family == "RedHat"
+
+- name: Allow port 4533 via firewalld
+  ansible.posix.firewalld:
+    port: 4533/tcp
+    permanent: true
+    state: enabled
+    immediate: true
   when: ansible_os_family == "RedHat"

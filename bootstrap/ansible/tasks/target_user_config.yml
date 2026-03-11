@@ -73,7 +73,7 @@
   ansible.builtin.get_url:
     url: "{{ rustup_sh_url }}"
     dest: "/tmp/rustup.sh"
-    mode: "0755"
+    mode: '0755'
 
 - name: Run rustup.sh with non-interactive flag
   ansible.builtin.shell: |
@@ -182,3 +182,40 @@
     executable: /bin/zsh
     chdir: "{{ admin_home_dir }}"
 
+- name: Ensure systemd contianer user directory exists
+  file:
+    path: "{{ admin_home_dir }}/.config/containers/systemd"
+    state: directory
+    mode: '0755'
+
+- name: Ensure Navidrome config directory exists
+  file:
+    path: "{{ navidrome_data_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Ensure Navidrome Music directory exists
+  file:
+    path: "{{ navidrome_music_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Deploy Navidrome Quadlet
+  template:
+    src: navidrome.container.j2
+    dest: "{{ admin_home_dir }}/.config/containers/systemd/navidrome.container"
+    mode: '0644'
+  register: quadlet_def
+
+- name: Reload systemd to generate service from Quadlet
+  systemd:
+    daemon_reload: true
+    scope: user
+  when: quadlet_def.changed
+
+- name: Ensure Navidrome is running
+  systemd:
+    name: navidrome
+    state: started
+    enabled: true
+    scope: user

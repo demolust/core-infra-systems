@@ -1,0 +1,18 @@
+[Unit]
+Description=Navidrome Container
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=docker.io/deluan/navidrome:latest
+PublishPort=4533:4533
+Volume={{ navidrome_data_dir }}:/data:Z,U
+Volume={{ navidrome_music_dir }}:/music:Z,ro
+AutoUpdate=registry
+
+[Service]
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=default.target

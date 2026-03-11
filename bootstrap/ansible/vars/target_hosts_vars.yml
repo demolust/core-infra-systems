@@ -22,3 +22,6 @@ samba_custom_shares:
     default_case: "lower"
     preserve_case: "yes"
     short_preserve_case: "yes"
+
+navidrome_data_dir: "/data/srv/navidrome"
+navidrome_music_dir: "/data/Music"
