@@ -202,7 +202,7 @@
 
 - name: Deploy Navidrome Quadlet
   template:
-    src: navidrome.container.j2
+    src: target/navidrome.container.j2
     dest: "{{ admin_home_dir }}/.config/containers/systemd/navidrome.container"
     mode: '0644'
   register: quadlet_def

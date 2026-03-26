@@ -29,7 +29,7 @@
 
 - name: Generate smb configuration from template
   ansible.builtin.template:
-    src: smb.conf.j2
+    src: target/smb.conf.j2
     dest: "/etc/samba/smb.conf"
     mode: '0644'
 
