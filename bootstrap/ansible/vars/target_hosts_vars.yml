@@ -26,7 +26,7 @@ samba_custom_shares:
 navidrome_data_dir: "/data/srv/navidrome"
 navidrome_music_dir: "/data/Music"
 
-pxe_http_port_target: "80"
+pxe_http_port: "80"
 pxe_interface: "{{ lookup('env', 'TARGET_PXE_INT') | default('enp0s31f6', true) }}"
 pxe_base_dir: "/data/srv/pxe"
 pxe_services:

@@ -60,14 +60,14 @@
     source ~/.zshenv
     source ~/.zshrc
     # Produce some output after first run
-    echo 'hi'
+    echo 'Zsh Setup Done'
   args:
     executable: /bin/zsh
     chdir: "{{ admin_home_dir }}"
-  register: script_output
+  register: zsh_setup_output
 
 - debug:
-    var: script_output.stdout_lines
+    var: zsh_setup_output.stdout_lines
 
 - name: Download rustup script
   ansible.builtin.get_url:
@@ -119,7 +119,7 @@
     # Comment for debugging as it can hit github api rate limit
     script-update-local-packages
     # Produce some output
-    echo 'hi'
+    echo 'DEBUG: Output'
   args:
     executable: /bin/zsh
     chdir: "{{ admin_home_dir }}"
@@ -150,10 +150,21 @@
   shell: |
     source ~/.zshenv
     source ~/.zshrc
-    for tool in $(cat {{ admin_home_dir }}/dotfiles/other_configs/uv_tools.txt); do uv tool install "$tool" ; done
+    tools=("${(@f)$(< {{ admin_home_dir }}/dotfiles/other_configs/uv_tools.txt)}")
+    for tool in "${tools[@]}"; do
+      [[ -z "$tool" ]] && continue
+      echo "Installing $tool"
+      uv tool install "$tool"
+    done
   args:
     executable: /bin/zsh
     chdir: "{{ admin_home_dir }}"
+  register: uv_tools_output
+
+- debug:
+    var: uv_tools_output.stdout_lines
+- debug:
+    var: uv_tools_output.stderr_lines
 
 - name: Install tmux tpm
   shell: |
@@ -187,6 +198,13 @@
     path: "{{ admin_home_dir }}/.config/containers/systemd"
     state: directory
     mode: '0755'
+
+- name: Enable podman-auto-update timer
+  systemd:
+    name: podman-auto-update.timer
+    state: started
+    enabled: true
+    scope: user
 
 - name: Ensure Navidrome config directory exists
   file:

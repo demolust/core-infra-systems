@@ -1,33 +1,13 @@
 ---
-- name: Generate dnsmasq configuration from template
+- name: Deploy bootstrap configuration files
   ansible.builtin.template:
-    src: bootstrap/dnsmasq.conf.j2
-    dest: "{{ base_dir }}/dnsmasq.conf"
-    mode: '0644'
-
-- name: Generate nginx configuration from template
-  ansible.builtin.template:
-    src: bootstrap/nginx.conf.j2
-    dest: "{{ base_dir }}/nginx.conf"
-    mode: '0644'
-
-- name: Generate tftpd configuration from template
-  ansible.builtin.template:
-    src: bootstrap/tftpd.map.j2
-    dest: "{{ base_dir }}/tftpd.map"
-    mode: '0644'
-
-- name: Deploy GRUB config for Secure Boot
-  ansible.builtin.template:
-    src: bootstrap/grub.cfg.j2
-    dest: "{{ base_dir }}/tftp/{{ selected_arch }}/grub.cfg"
-
-- name: Deploy iPXE script for Non-SB
-  ansible.builtin.template:
-    src: bootstrap/boot.ipxe.j2
-    dest: "{{ base_dir }}/www/{{ selected_arch }}/boot.ipxe"
-
-- name: Deploy the kickstart script
-  ansible.builtin.template:
-    src: bootstrap/ks.cfg.j2
-    dest: "{{ base_dir }}/www/{{ selected_arch }}/ks.cfg"
+    src: "bootstrap/{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode | default('0644') }}"
+  loop:
+    - { src: 'dnsmasq.conf.j2', dest: "{{ base_dir }}/dnsmasq.conf" }
+    - { src: 'nginx.conf.j2',   dest: "{{ base_dir }}/nginx.conf" }
+    - { src: 'tftpd.map.j2',    dest: "{{ base_dir }}/tftpd.map" }
+    - { src: 'grub.cfg.j2',     dest: "{{ base_dir }}/tftp/{{ selected_arch }}/grub.cfg" }
+    - { src: 'boot.ipxe.j2',    dest: "{{ base_dir }}/www/{{ selected_arch }}/boot.ipxe" }
+    - { src: 'ks.cfg.j2',       dest: "{{ base_dir }}/www/{{ selected_arch }}/ks.cfg" }

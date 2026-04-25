@@ -73,6 +73,12 @@
     - nmb
   when: ansible_os_family == "RedHat"
 
+- name: Enable podman-auto-update timer
+  systemd:
+    name: podman-auto-update.timer
+    state: started
+    enabled: true
+
 - name: Allow Navidrome port (4533) via firewalld
   ansible.posix.firewalld:
     port: 4533/tcp

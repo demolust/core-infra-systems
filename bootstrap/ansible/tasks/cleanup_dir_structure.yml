@@ -1,23 +1,10 @@
 ---
-- name: Remove TFTP directory structure
-  ansible.builtin.file:
-    path: "{{ base_dir }}/tftp/{{ selected_arch }}"
-    state: absent
-
-- name: Remove HTTP directory structure
-  ansible.builtin.command:
-    cmd: "rm -rf {{ base_dir }}/www/{{ selected_arch }}"
-  args:
-    removes: "{{ base_dir }}/www/{{ selected_arch }}"
-
-- name: Remove isos directory structure
-  ansible.builtin.command:
-    cmd: "rm -rf {{ base_dir }}/isos/"
-  args:
-    removes: "{{ base_dir }}/isos/"
-
-- name: Remove PXE directory structure
-  ansible.builtin.command:
-    cmd: "rm -rf {{ base_dir }}"
-  args:
-    removes: "{{ base_dir }}"
+- name: Remove PXE directory structures
+  ansible.builtin.shell:
+    cmd: "rm -rf {{ item }}"
+  loop:
+    - "{{ base_dir }}/tftp/{{ selected_arch }}"
+    - "{{ base_dir }}/www/{{ selected_arch }}"
+    - "{{ base_dir }}/isos/"
+    - "{{ base_dir }}"
+  failed_when: false

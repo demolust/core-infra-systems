@@ -1,24 +1,11 @@
 ---
 - name: Create PXE directory structure
   ansible.builtin.file:
-    path: "{{ base_dir }}"
+    path: "{{ item }}"
     state: directory
     mode: '0755'
-
-- name: Create isos directory structure
-  ansible.builtin.file:
-    path: "{{ base_dir }}/isos"
-    state: directory
-    mode: '0755'
-
-- name: Create TFTP directory structure
-  ansible.builtin.file:
-    path: "{{ base_dir }}/tftp/{{ selected_arch }}"
-    state: directory
-    mode: '0755'
-
-- name: Create HTTP directory structure
-  ansible.builtin.file:
-    path: "{{ base_dir }}/www/{{ selected_arch }}"
-    state: directory
-    mode: '0755'
+  loop:
+    - "{{ base_dir }}"
+    - "{{ base_dir }}/isos"
+    - "{{ base_dir }}/tftp/{{ selected_arch }}"
+    - "{{ base_dir }}/www/{{ selected_arch }}"
