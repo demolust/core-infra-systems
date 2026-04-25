@@ -115,22 +115,19 @@
 
 - name: Create PXE directory structure
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ pxe_base_dir }}/{{ item }}"
     state: directory
     mode: '0755'
   loop:
-    - "{{ pxe_base_dir }}"
-    - "{{ pxe_base_dir }}/configs"
-    - "{{ pxe_base_dir }}/isos"
-    - "{{ pxe_base_dir }}/images"
-    - "{{ pxe_base_dir }}/tftp"
-    - "{{ pxe_base_dir }}/tftp/x86_64"
-    - "{{ pxe_base_dir }}/tftp/aarch64"
-    - "{{ pxe_base_dir }}/www"
-    - "{{ pxe_base_dir }}/www/ipxe"
-    - "{{ pxe_base_dir }}/www/ipxe/configs"
-    - "{{ pxe_base_dir }}/www/x86_64"
-    - "{{ pxe_base_dir }}/www/aarch64"
+    - "."
+    - "configs"
+    - "isos"
+    - "images"
+    - "tftp/x86_64/rescue"
+    - "tftp/aarch64/rescue"
+    - "www/ipxe/configs"
+    - "www/x86_64/rescue"
+    - "www/aarch64/rescue"
 
 - name: Deploy PXE configuration files
   ansible.builtin.template:
@@ -141,8 +138,8 @@
     - { src: 'dnsmasq.conf.j2', dest: "{{ pxe_base_dir }}/configs/dnsmasq.conf" }
     - { src: 'nginx.conf.j2',   dest: "{{ pxe_base_dir }}/configs/nginx.conf" }
     - { src: 'tftpd.map.j2',    dest: "{{ pxe_base_dir }}/configs/tftpd.map" }
-    #- { src: 'grub.cfg.j2',     dest: "{{ pxe_base_dir }}/tftp/grub.cfg" }
-    #- { src: 'boot.ipxe.j2',    dest: "{{ pxe_base_dir }}/www/boot.ipxe" }
+    - { src: 'grub.cfg.j2',     dest: "{{ pxe_base_dir }}/tftp/grub.cfg" }
+    - { src: 'boot.ipxe.j2',    dest: "{{ pxe_base_dir }}/www/ipxe/configs/boot.ipxe" }
   register: config_results
 
 - name: Ensure root systemd contianer directory exists

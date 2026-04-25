@@ -1,0 +1,32 @@
+set default="0"
+set timeout=5
+
+function load_video {
+  insmod efi_gop
+  insmod efi_uga
+  insmod video_bochs
+  insmod video_cirrus
+  insmod all_video
+}
+
+load_video
+set gfxpayload=keep
+insmod gzio
+insmod part_gpt
+insmod ext2
+
+# Logic to handle different ISO paths automatically
+if [ "$grub_cpu" = "x86_64" ]; then
+    set arch_path="x86_64"
+elif [ "$grub_cpu" = "arm64" ]; then
+    set arch_path="aarch64"
+fi
+
+menuentry "Rescue System" {
+  linuxefi /${arch_path}/rescue/vmlinuz ip=dhcp
+  initrdefi /${arch_path}/rescue/initrd.img
+}
+
+menuentry "Switch to iPXE Shell (Non-SB only)" {
+  chainloader /${arch_path}/ipxe.efi
+}
