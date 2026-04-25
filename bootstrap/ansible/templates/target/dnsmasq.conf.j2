@@ -1,0 +1,27 @@
+# Only listen on the defined interface
+interface={{ pxe_interface }}
+#bind-interfaces
+bind-dynamic
+
+# Disable DNS functionality (since only need DHCP/TFTP)
+port=0
+
+# Enable DHCP Proxy 
+# TODO: Get range dynamically
+dhcp-range=192.168.1.0,proxy
+
+# Identify Architectures
+dhcp-match=set:x86_64,option:client-arch,7
+dhcp-match=set:x86_64,option:client-arch,9
+dhcp-match=set:aarch64,option:client-arch,11
+
+# TODO: Remove this line for the config like in the bootstrap
+dhcp-boot=tag:x86_64,shim.shim
+
+# Force a safe MTU
+dhcp-option=26,1460
+
+# Enable logging
+log-facility=-
+log-dhcp
+log-queries

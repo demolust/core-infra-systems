@@ -5,7 +5,7 @@
     state: directory
     owner: root
     group: "{{ samba_share_group }}"
-    # Need other (Podman) to have execute
+    # Need `other` (e.g. Podman containers) to have execute
     mode: '2775'
   loop: "{{ samba_custom_shares }}"
 
@@ -73,10 +73,73 @@
     - nmb
   when: ansible_os_family == "RedHat"
 
-- name: Allow port 4533 via firewalld
+- name: Allow Navidrome port (4533) via firewalld
   ansible.posix.firewalld:
     port: 4533/tcp
     permanent: true
     state: enabled
     immediate: true
   when: ansible_os_family == "RedHat"
+
+- name: Allow PXE ports via firewalld
+  ansible.posix.firewalld:
+    service: "{{ item.name | default(omit) }}"
+    port: "{{ (item.port + '/' + item.proto) if item.name is not defined else omit }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop: "{{ pxe_services }}"
+  when: ansible_os_family == "RedHat"
+
+- name: Create PXE directory structure
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ pxe_base_dir }}"
+    - "{{ pxe_base_dir }}/configs"
+    - "{{ pxe_base_dir }}/isos"
+    - "{{ pxe_base_dir }}/tftp"
+    - "{{ pxe_base_dir }}/www"
+
+- name: Deploy PXE configuration files
+  ansible.builtin.template:
+    src: "target/{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode | default('0644') }}"
+  loop:
+    - { src: 'dnsmasq.conf.j2', dest: "{{ pxe_base_dir }}/configs/dnsmasq.conf" }
+    - { src: 'nginx.conf.j2',   dest: "{{ pxe_base_dir }}/configs/nginx.conf" }
+    - { src: 'tftpd.map.j2',    dest: "{{ pxe_base_dir }}/configs/tftpd.map" }
+    #- { src: 'grub.cfg.j2',     dest: "{{ pxe_base_dir }}/tftp/{{ selected_arch }}/grub.cfg" }
+    #- { src: 'boot.ipxe.j2',    dest: "{{ pxe_base_dir }}/www/{{ selected_arch }}/boot.ipxe" }
+
+- name: Ensure root systemd contianer directory exists
+  file:
+    path: "/etc/containers/systemd"
+    state: directory
+    mode: '0755'
+
+- name: Deploy Quadlet files
+  template:
+    src: "target/{{ item.src }}"
+    dest: "/etc/containers/systemd/{{ item.dest }}"
+  loop:
+    - { src: 'pxe.pod.j2', dest: 'pxe.pod' }
+    - { src: 'pxe_dnsmasq.container.j2', dest: 'pxe_dnsmasq.container' }
+    - { src: 'pxe_tftp.container.j2', dest: 'pxe_tftp.container' }
+    - { src: 'pxe_nginx.container.j2', dest: 'pxe_nginx.container' }
+  register: quadlet_results
+
+- name: Reload systemd to generate service from Quadlet
+  systemd:
+    daemon_reload: true
+  when: quadlet_results.changed
+
+- name: Reload and Start
+  systemd:
+    name: pxe-pod.service
+    state: started
+    enabled: true
+  #when: quadlet_results.changed

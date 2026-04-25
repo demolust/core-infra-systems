@@ -1,0 +1,11 @@
+[Unit]
+Requires=pxe_dnsmasq.service pxe_tftp.service pxe_nginx.service
+Wants=pxe_dnsmasq.service pxe_tftp.service pxe_nginx.service
+After=network-online.target
+
+[Pod]
+PodName=pxe
+Network=host
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+[Unit]
+Description=PXE dnsmasq Component
+After=pxe-pod.service
+BindsTo=pxe-pod.service
+PartOf=pxe-pod.service
+
+[Container]
+ContainerName=pxe_dnsmasq
+Image=docker.io/4km3/dnsmasq
+Volume={{ pxe_base_dir }}/configs/dnsmasq.conf:/etc/dnsmasq.conf:Z
+AddCapability=NET_ADMIN NET_BIND_SERVICE NET_RAW
+Pod=pxe.pod
+
+[Service]
+Restart=on-failure
+StartLimitIntervalSec=30
+StartLimitBurst=5

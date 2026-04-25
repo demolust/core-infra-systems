@@ -23,7 +23,7 @@ admin_ssh_pub_key: "{{ lookup('env', 'TARGET_ADMIN_SSH_PUB_KEY') | default('', t
 admin_samba_password: "{{ lookup('env', 'TARGET_ADMIN_SAMBA_PASSWORD_HASH') | default('', true) }}"
 admin_username: "{{ lookup('env', 'TARGET_HOST_ADMIN') | default('admin', true) }}"
 
-# Other used envs
+# PXE Ports
 bootstrap_services:
   - {port: '66', proto: 'udp'}
   - {name: 'dhcp', port: '67', proto: 'udp'}
