@@ -1,4 +1,13 @@
 ---
+- name: Get current arch
+  shell: "uname -m"
+  register: arch
+  changed_when: false
+
+- name: Set facts for arch
+  set_fact:
+    current_arch: "{{ arch.stdout }}"
+
 - name: Ensure major dependencies are installed (EPEL/config-manager)
   ansible.builtin.dnf:
     name:
@@ -223,26 +232,26 @@
 - name: Rebuild id3lib (Library)
   command: "rpmbuild --rebuild {{ build_dir }}/id3lib.src.rpm"
   args:
-    creates: "/root/rpmbuild/RPMS/{{ selected_arch }}/id3lib-3.8.3-61.el9.{{ selected_arch }}.rpm"
+    creates: "/root/rpmbuild/RPMS/{{ current_arch }}/id3lib-3.8.3-61.el9.{{ current_arch }}.rpm"
 
 - name: Install built id3lib packages
-  shell: "dnf install -y /root/rpmbuild/RPMS/{{ selected_arch }}/id3lib-*.rpm"
+  shell: "dnf install -y /root/rpmbuild/RPMS/{{ current_arch }}/id3lib-*.rpm"
 
 - name: Rebuild id3v2 (Tool)
   command: "rpmbuild --rebuild {{ build_dir }}/id3v2.src.rpm"
   args:
-    creates: "/root/rpmbuild/RPMS/{{ selected_arch }}/id3v2-0.1.12-40.el9.{{ selected_arch }}.rpm"
+    creates: "/root/rpmbuild/RPMS/{{ current_arch }}/id3v2-0.1.12-40.el9.{{ current_arch }}.rpm"
 
 - name: Install built id3v2 package
-  shell: "dnf install -y /root/rpmbuild/RPMS/{{ selected_arch }}/id3v2-*.rpm"
+  shell: "dnf install -y /root/rpmbuild/RPMS/{{ current_arch }}/id3v2-*.rpm"
 
 - name: Rebuild catdoc (Tool)
   command: "rpmbuild --rebuild {{ build_dir }}/catdoc.src.rpm"
   args:
-    creates: "/root/rpmbuild/RPMS/{{ selected_arch }}/catdoc-0.95-28.el9.{{ selected_arch }}.rpm"
+    creates: "/root/rpmbuild/RPMS/{{ current_arch }}/catdoc-0.95-28.el9.{{ current_arch }}.rpm"
 
 - name: Install built catdoc package
-  shell: "dnf install -y /root/rpmbuild/RPMS/{{ selected_arch }}/catdoc-*.rpm"
+  shell: "dnf install -y /root/rpmbuild/RPMS/{{ current_arch }}/catdoc-*.rpm"
 
 - name: Create|Update the SAMBA {{ samba_share_group }} group
   ansible.builtin.group:
