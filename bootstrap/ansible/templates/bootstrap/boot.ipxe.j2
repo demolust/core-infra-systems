@@ -2,7 +2,7 @@
 # PXE containerized boot.ipxe - Managed by Ansible/Jinja2
 # Ensure the network interface is up
 dhcp
-set base-url http://{{ bootstrap_ip }}:{{ pxe_http_port }}
+set base-url http://{{ bootstrap_ip }}:{{ bootstrap_http_port }}
 
 :start
 menu {{ os_base }} {{ version }} Installer ({{ selected_arch }})
@@ -13,7 +13,7 @@ choose --default install --timeout 5000 target && goto ${target}
 
 :install
 echo Loading {{ os_base }} {{ version }} Kernel...
-kernel ${base-url}/{{ selected_arch }}/images/pxeboot/vmlinuz inst.repo=http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/BaseOS inst.stage2=http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/ inst.ks=http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/ks.cfg ip=dhcp rd.net.timeout.carrier=40 rd.neednet=1 video=1920x1080
+kernel ${base-url}/{{ selected_arch }}/images/pxeboot/vmlinuz inst.repo=http://{{ bootstrap_ip }}:{{ bootstrap_http_port }}/{{ selected_arch }}/BaseOS inst.stage2=http://{{ bootstrap_ip }}:{{ bootstrap_http_port }}/{{ selected_arch }}/ inst.ks=http://{{ bootstrap_ip }}:{{ bootstrap_http_port }}/{{ selected_arch }}/ks.cfg ip=dhcp rd.net.timeout.carrier=40 rd.neednet=1 video=1920x1080
 initrd ${base-url}/{{ selected_arch }}/images/pxeboot/initrd.img
 echo Booting...
 boot

@@ -1,0 +1,21 @@
+---
+wan_interface: "{{ lookup('env', 'WAN_INT') | default('wlp2s0', true) }}"
+bootstrap_interface: "{{ lookup('env', 'BOOTSTRAP_INT') | default('enp1s0f0', true) }}"
+bootstrap_ip: "172.168.100.1"
+bootstrap_subnet: "24"
+bootstrap_ip_range_1: "172.168.100.50"
+bootstrap_ip_range_2: "172.168.100.150"
+bootstrap_http_port: "80"
+sb_enabled: "{{ lookup('env', 'TARGET_SB_ENABLED') | default('False') | bool }}"
+arch_map:
+  amd: "x86_64"
+  x86_64: "x86_64"
+  arm: "aarch64"
+  aarch64: "aarch64"
+selected_arch: "{{ arch_map[lookup('env', 'TARGET_HOST_ARCH') | default('x86_64', true)] }}"
+base_dir: "{{ playbook_dir | dirname }}/pxe-data"
+
+# Installation envs
+hostname: "{{ lookup('env', 'TARGET_HOST_NAME') | default('server-test.local', true) }}"
+timezone: "{{ lookup('env', 'TARGET_HOST_TZ') | default('America/Monterrey', true) }}"
+root_password_hash: "{{ lookup('env', 'TARGET_ROOT_PASSWORD_HASH') | default('', true) }}"

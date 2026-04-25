@@ -17,6 +17,6 @@ insmod part_gpt
 insmod ext2
 
 menuentry 'Install {{ os_base }} {{ version }} (Secure Boot)' --class fedora --class gnu-linux --class gnu --class os {
-    linux /{{ selected_arch }}/vmlinuz inst.repo=http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/BaseOS inst.stage2=http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/ inst.ks=http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/ks.cfg ip=dhcp rd.net.timeout.carrier=40 rd.neednet=1 video=1920x1080
+    linux /{{ selected_arch }}/vmlinuz inst.repo=http://{{ bootstrap_ip }}:{{ bootstrap_http_port }}/{{ selected_arch }}/BaseOS inst.stage2=http://{{ bootstrap_ip }}:{{ bootstrap_http_port }}/{{ selected_arch }}/ inst.ks=http://{{ bootstrap_ip }}:{{ bootstrap_http_port }}/{{ selected_arch }}/ks.cfg ip=dhcp rd.net.timeout.carrier=40 rd.neednet=1 video=1920x1080
     initrd /{{ selected_arch }}/initrd.img
 }

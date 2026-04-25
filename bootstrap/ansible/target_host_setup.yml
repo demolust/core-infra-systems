@@ -24,10 +24,6 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    - name: Force load the specific vars file
-      include_vars:
-        file: vars/target_hosts_vars.yml
-
     - name: Install base apps
       ansible.builtin.import_tasks: tasks/target_base_install.yml
 

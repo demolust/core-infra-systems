@@ -1,14 +1,14 @@
 ---
 admin_home_dir: "/home/{{ admin_username }}"
-github_user: "{{ lookup('env', 'GITHUB_USERNAME') | default('', true) }}"
 
+admin_samba_password: "{{ lookup('env', 'TARGET_ADMIN_SAMBA_PASSWORD') | default('', true) }}"
+admin_samba_password_hash: "{{ lookup('env', 'TARGET_ADMIN_SAMBA_PASSWORD_HASH') | default('', true) }}"
 samba_workgroup: "WORKGROUP"
 samba_users_path: "/home"
 samba_spool_path: "/var/spool/samba"
 samba_share_group: "share"
 samba_users:
-  # - {name: "{{ admin_username }}", password: "{{ admin_samba_password }}"}
-  - {name: "{{ admin_username }}", password: "***REMOVED***"}
+  - { name: "{{ admin_username }}", password: "{{ admin_samba_password }}" }
   # - { name: "jsmith", password: "{{ vault_jsmith_hashed_pass }}" }
   # - { name: "jsmith", password: "{{ vault_jsmith_pass }}" }
 samba_custom_shares:
@@ -23,17 +23,13 @@ samba_custom_shares:
     preserve_case: "yes"
     short_preserve_case: "yes"
 
+github_user: "{{ lookup('env', 'GITHUB_USERNAME') | default('', true) }}"
+github_repo: "{{ lookup('env', 'GITHUB_REPO') | default('', true) }}"
+dotfiles_repo: "https://github.com/{{ github_user }}/{{ github_repo }}.git"
+
 navidrome_data_dir: "/data/srv/navidrome"
 navidrome_music_dir: "/data/Music"
 
 pxe_http_port: "80"
 pxe_interface: "{{ lookup('env', 'TARGET_PXE_INT') | default('enp0s31f6', true) }}"
 pxe_base_dir: "/data/srv/pxe"
-pxe_services:
-  - {port: '66', proto: 'udp'}
-  - {name: 'dhcp', port: '67', proto: 'udp'}
-  - {port: '68', proto: 'udp'}
-  - {name: 'tftp', port: '69', proto: 'udp'}
-  - {port: '4011', proto: 'udp'}
-  - {name: 'http', port: '80', proto: 'tcp'}
-  - {name: 'https', port: '443', proto: 'tcp'}

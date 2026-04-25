@@ -1,34 +1,15 @@
 ---
-wan_interface: "{{ lookup('env', 'WAN_INT') | default('wlp2s0', true) }}"
-bootstrap_interface: "{{ lookup('env', 'BOOTSTRAP_INT') | default('enp1s0f0', true) }}"
-bootstrap_ip: "172.168.100.1"
-bootstrap_subnet: "24"
-bootstrap_ip_range_1: "172.168.100.50"
-bootstrap_ip_range_2: "172.168.100.150"
-bootstrap_http_port: "80"
-sb_enabled: "{{ lookup('env', 'TARGET_SB_ENABLED') | default('False') | bool }}"
-arch_map:
-  amd: "x86_64"
-  x86_64: "x86_64"
-  arm: "aarch64"
-  aarch64: "aarch64"
-selected_arch: "{{ arch_map[lookup('env', 'TARGET_HOST_ARCH') | default('x86_64', true)] }}"
-base_dir: "{{ playbook_dir | dirname }}/pxe-data"
 # Installation envs
-hostname: "{{ lookup('env', 'TARGET_HOST_NAME') | default('server-test.local', true) }}"
-timezone: "{{ lookup('env', 'TARGET_HOST_TZ') | default('America/Monterrey', true) }}"
-root_password_hash: "{{ lookup('env', 'TARGET_ROOT_PASSWORD_HASH') | default('', true) }}"
 admin_password_hash: "{{ lookup('env', 'TARGET_ADMIN_PASSWORD_HASH') | default('', true) }}"
 admin_ssh_pub_key: "{{ lookup('env', 'TARGET_ADMIN_SSH_PUB_KEY') | default('', true) }}"
-admin_samba_password: "{{ lookup('env', 'TARGET_ADMIN_SAMBA_PASSWORD_HASH') | default('', true) }}"
 admin_username: "{{ lookup('env', 'TARGET_HOST_ADMIN') | default('admin', true) }}"
 
 # PXE Ports
-bootstrap_services:
-  - {port: '66', proto: 'udp'}
-  - {name: 'dhcp', port: '67', proto: 'udp'}
-  - {port: '68', proto: 'udp'}
-  - {name: 'tftp', port: '69', proto: 'udp'}
-  - {port: '4011', proto: 'udp'}
-  - {name: 'http', port: '80', proto: 'tcp'}
-  - {name: 'https', port: '443', proto: 'tcp'}
+pxe_services:
+  - { port: '66', proto: 'udp' }
+  - { name: 'dhcp', port: '67', proto: 'udp' }
+  - { port: '68', proto: 'udp' }
+  - { name: 'tftp', port: '69', proto: 'udp' }
+  - { port: '4011', proto: 'udp' }
+  - { name: 'http', port: '80', proto: 'tcp' }
+  - { name: 'https', port: '443', proto: 'tcp' }

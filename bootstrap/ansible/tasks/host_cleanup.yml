@@ -12,7 +12,7 @@
     name: "{{ item.name | default(omit) }}"
     port: "{{ item.port if item.name is not defined else omit }}"
     proto: "{{ item.proto }}"
-  loop: "{{ bootstrap_services }}"
+  loop: "{{ pxe_services }}"
   when: ansible_os_family == "Debian"
 
 - name: Close ports on firewalld
@@ -22,7 +22,7 @@
     permanent: true
     state: disabled
     immediate: true
-  loop: "{{ bootstrap_services }}"
+  loop: "{{ pxe_services }}"
   when: ansible_os_family == "RedHat"
 
 - name: Close ports via iptables
@@ -32,7 +32,7 @@
     destination_port: "{{ item.port }}"
     jump: ACCEPT
     action: remove
-  loop: "{{ bootstrap_services }}"
+  loop: "{{ pxe_services }}"
   when: ansible_os_family not in ["Debian", "RedHat"]
 
 - name: Disable Kernel IP Forwarding

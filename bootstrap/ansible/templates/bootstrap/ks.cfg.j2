@@ -41,8 +41,8 @@ rootpw --iscrypted {{ root_password_hash }}
 user --name={{ admin_username }} --groups=wheel --iscrypted --password={{ admin_password_hash }}
 
 # --- Network & Sources ---
-url --url="http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/"
-repo --name="AppStream" --baseurl="http://{{ bootstrap_ip }}:{{ pxe_http_port }}/{{ selected_arch }}/AppStream/"
+url --url="http://{{ bootstrap_ip }}:{{ bootstrap_http_port }}/{{ selected_arch }}/"
+repo --name="AppStream" --baseurl="http://{{ bootstrap_ip }}:{{ bootstrap_http_port }}/{{ selected_arch }}/AppStream/"
 network --bootproto=dhcp --device=link --onboot=yes --hostname={{ hostname }} --activate
 
 firewall --enabled --ssh
