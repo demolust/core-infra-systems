@@ -6,7 +6,7 @@ Wants=network-online.target
 
 [Container]
 Image=docker.io/deluan/navidrome:latest
-PublishPort=4533:4533
+PublishPort={{ navidrome_port }}:{{ navidrome_port }}
 Volume={{ navidrome_data_dir }}:/data:Z,U
 Volume={{ navidrome_music_dir }}:/music:Z,ro
 AutoUpdate=registry

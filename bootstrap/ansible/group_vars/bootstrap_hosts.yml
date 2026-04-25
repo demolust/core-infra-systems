@@ -1,6 +1,8 @@
 ---
+# General
 admin_home_dir: "/home/{{ admin_username }}"
 
+# Samba
 admin_samba_password: "{{ lookup('env', 'TARGET_ADMIN_SAMBA_PASSWORD') | default('', true) }}"
 admin_samba_password_hash: "{{ lookup('env', 'TARGET_ADMIN_SAMBA_PASSWORD_HASH') | default('', true) }}"
 samba_workgroup: "WORKGROUP"
@@ -9,8 +11,8 @@ samba_spool_path: "/var/spool/samba"
 samba_share_group: "share"
 samba_users:
   - { name: "{{ admin_username }}", password: "{{ admin_samba_password }}" }
-  # - { name: "jsmith", password: "{{ vault_jsmith_hashed_pass }}" }
-  # - { name: "jsmith", password: "{{ vault_jsmith_pass }}" }
+  # - { name: "{{ admin_username }}", password: "{{ vault_admin_samba_hashed_pass }}" }
+  # - { name: "{{ admin_username }}", password: "{{ vault_admin_samba_pass }}" }
 samba_custom_shares:
   - name: "data"
     comment: "Restricted Data Share (Linux-style case sensitivity | Permissions: 664/775) For {{ admin_username }} and @{{ samba_share_group }}"
@@ -23,13 +25,17 @@ samba_custom_shares:
     preserve_case: "yes"
     short_preserve_case: "yes"
 
+# dotfiles repo
 github_user: "{{ lookup('env', 'GITHUB_USERNAME') | default('', true) }}"
 github_repo: "{{ lookup('env', 'GITHUB_REPO') | default('', true) }}"
 dotfiles_repo: "https://github.com/{{ github_user }}/{{ github_repo }}.git"
 
+# navidrome data
 navidrome_data_dir: "/data/srv/navidrome"
 navidrome_music_dir: "/data/Music"
+navidrome_port: "4533"
 
+# PXE data
 pxe_http_port: "80"
 pxe_interface: "{{ lookup('env', 'TARGET_PXE_INT') | default('enp0s31f6', true) }}"
 pxe_base_dir: "/data/srv/pxe"

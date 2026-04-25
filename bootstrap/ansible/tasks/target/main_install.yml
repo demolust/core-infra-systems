@@ -95,9 +95,9 @@
     state: started
     enabled: true
 
-- name: Allow Navidrome port (4533) via firewalld
+- name: Allow Navidrome port via firewalld
   ansible.posix.firewalld:
-    port: 4533/tcp
+    port: "{{ navidrome_port }}/tcp"
     permanent: true
     state: enabled
     immediate: true

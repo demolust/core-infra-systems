@@ -162,6 +162,7 @@
 
 - debug:
     var: uv_tools_output.stdout_lines
+
 - debug:
     var: uv_tools_output.stderr_lines
 
