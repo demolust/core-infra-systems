@@ -6,9 +6,8 @@ bind-dynamic
 # Disable DNS functionality (since only need DHCP/TFTP)
 port=0
 
-# Enable DHCP Proxy 
-# TODO: Get range dynamically
-dhcp-range=192.168.1.0,proxy
+# Enable DHCP Proxy
+dhcp-range={{ remote_subnet }},proxy,{{ remote_netmask }}
 
 # Identify Architectures
 dhcp-match=set:x86_64,option:client-arch,7

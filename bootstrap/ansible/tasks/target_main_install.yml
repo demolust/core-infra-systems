@@ -1,4 +1,14 @@
 ---
+- name: Get Network Subnet and Mask
+  shell: "ip route show dev {{ pxe_interface }} | grep 'proto kernel' | awk '{print $1}'"
+  register: network_info
+  changed_when: false
+
+- name: Set facts for subnet and mask
+  set_fact:
+    remote_subnet: "{{ network_info.stdout.split('/')[0] }}"
+    remote_netmask: "{{ network_info.stdout.split('/')[1] }}"
+
 - name: Create directory structure for Samba
   ansible.builtin.file:
     path: "{{ item.path }}"
