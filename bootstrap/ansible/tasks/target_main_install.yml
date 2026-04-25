@@ -117,7 +117,9 @@
   ansible.builtin.file:
     path: "{{ pxe_base_dir }}/{{ item }}"
     state: directory
-    mode: '0755'
+    mode: '2775'
+    owner: "root"
+    group: "wheel"
   loop:
     - "."
     - "configs"
@@ -133,7 +135,9 @@
   ansible.builtin.template:
     src: "target/{{ item.src }}"
     dest: "{{ item.dest }}"
-    mode: "{{ item.mode | default('0644') }}"
+    mode: "{{ item.mode | default('0664') }}"
+    owner: "root"
+    group: "wheel"
   loop:
     - { src: 'dnsmasq.conf.j2', dest: "{{ pxe_base_dir }}/configs/dnsmasq.conf" }
     - { src: 'nginx.conf.j2',   dest: "{{ pxe_base_dir }}/configs/nginx.conf" }
