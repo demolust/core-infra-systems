@@ -15,8 +15,21 @@ dhcp-match=set:x86_64,option:client-arch,7
 dhcp-match=set:x86_64,option:client-arch,9
 dhcp-match=set:aarch64,option:client-arch,11
 
-# TODO: Remove this line for the config like the one in the bootstrap section
-dhcp-boot=tag:x86_64,shim.shim
+# Set ipxe boot porcess
+# Identify if the requester is iPXE
+#dhcp-match=set:is_ipxe, 175
+dhcp-userclass=set:is_ipxe,iPXE
+dhcp-boot=tag:is_ipxe,http://{{ remote_server_ip }}/ipxe/configs/boot.ipxe
+
+# Assign Bootloader based on Architecture + SB
+# If Secure Boot is ON, always point to SHIM, not GRUB
+dhcp-boot=tag:x86_64,tag:!is_ipxe, /x86_64/shimx64.efi
+dhcp-boot=tag:aarch64,tag:!is_ipxe, /aarch64/shimaa64.efi
+
+# For SB OFF need to change this config and restart the dnsmasq service
+# If Secure Boot is OFF, always point to ipxe
+#dhcp-boot=tag:x86_64,tag:!is_ipxe, /x86_64/ipxe.efi
+#dhcp-boot=tag:aarch64,tag:!is_ipxe, /aarch64/ipxe.efi
 
 # Force a safe MTU
 dhcp-option=26,1460

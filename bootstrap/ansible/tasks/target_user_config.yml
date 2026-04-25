@@ -234,6 +234,6 @@
 - name: Ensure Navidrome is running
   systemd:
     name: navidrome
-    state: started
+    state: restarted
     enabled: true
     scope: user

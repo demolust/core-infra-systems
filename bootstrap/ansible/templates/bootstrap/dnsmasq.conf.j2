@@ -20,6 +20,9 @@ dhcp-match=set:x86_64,option:client-arch,7
 dhcp-match=set:x86_64,option:client-arch,9
 dhcp-match=set:aarch64,option:client-arch,11
 
+# Set ipxe boot porcess
+# Identify if the requester is iPXE
+#dhcp-match=set:is_ipxe, 175
 dhcp-userclass=set:is_ipxe,iPXE
 dhcp-boot=tag:is_ipxe,http://{{ bootstrap_ip }}/{{ selected_arch }}/boot.ipxe
 

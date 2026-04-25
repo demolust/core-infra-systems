@@ -12,8 +12,8 @@
 # 0. Handle Windows/UEFI backslashes first to normalize the string
 rg \\ /
 
-# 1. Catch "Onboard" (anchored to the start)
-rig .*Onboard.* {{ selected_arch }}/{{ grub_file }}
+# 1. Catch "Onboard" Dell Issue (anchored to the start)
+rig .*Onboard.* x86_64/grubx64.efi
 
 # 2. Trick the revocation check by feeding it the Shim binary
 ri ^revocations\.efi.* {{ selected_arch }}/{{ shim_file }}

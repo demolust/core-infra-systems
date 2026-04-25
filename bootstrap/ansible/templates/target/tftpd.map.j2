@@ -1,5 +1,17 @@
 # PXE containerized tftpd.map - Managed by Ansible/Jinja2
 # Regex rules to intercept and fix broken UEFI PXE paths
 
-# TODO: Remove this line for the config like the one in the bootstrap section
+# 0. Handle Windows/UEFI backslashes first to normalize the string
 rg \\ /
+
+# 1. Catch "Onboard" Dell Issue (anchored to the start)
+rig .*Onboard.* x86_64/grubx64.efi
+
+# 2. Trick the revocation check by feeding it the Shim binary
+ri ^*x86_64*revocations\.efi.* x86_64/BOOTX64.EFI
+ri ^*aarch64*revocations\.efi.* aarch64/BOOTAA64.EFI
+
+# 3. Catch strictly stripped files (anchored so it doesn't double-trigger)
+ri ^grubx64\.efi.* x86_64/grubx64.efi
+ri ^grubaa64\.efi.* aarch64/grubaa64.efi
+ri ^grub\.cfg.* /grub.cfg
