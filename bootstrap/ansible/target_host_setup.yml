@@ -3,12 +3,24 @@
   hosts: localhost
   gather_facts: true
   vars:
-    target_host_ip: "{{ lookup('env', 'TARGET_HOST_IP') }}"
+    # To skip discovery steps use either `export TARGET_HOST_IP=1.2.3.4` or `-e "target_host_ip=1.2.3.4"`
+    manual_target_host_ip: "{{ target_host_ip | default(lookup('env', 'TARGET_HOST_IP')) | default('', true) }}"
   tasks:
-    - name: Fail if variable is missing
+    - name: Discover Target IP via ARP cache
+      ansible.builtin.shell: |
+        ip neighbor show dev "{{ bootstrap_interface }}" | head -n 1 | awk '{print $1}'
+      register: discovered_ip_result
+      changed_when: false
+      when: manual_target_host_ip == ""
+
+    - name: Set target node IP fact
+      ansible.builtin.set_fact:
+        target_host_ip: "{{ manual_target_host_ip if manual_target_host_ip != '' else discovered_ip_result.stdout }}"
+
+    - name: Fail if target node IP is missing
       ansible.builtin.fail:
-        msg: "Please set TARGET_HOST_IP env var first"
-      when: target_host_ip == ''
+        msg: "Could not discover the target node IP and no TARGET_HOST_IP env var was provided"
+      when: target_host_ip == ""
 
     - name: Add the temp host to a virtual group
       ansible.builtin.add_host:
