@@ -1,5 +1,5 @@
 #!ipxe
-
+# PXE containerized boot.ipxe - Managed by Ansible/Jinja2
 # Ensure the network interface is up
 dhcp
 set base-url http://{{ bootstrap_ip }}:{{ pxe_http_port }}
