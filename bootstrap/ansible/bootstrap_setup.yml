@@ -6,26 +6,26 @@
 
   tasks:
     - name: Creation of Directory Structure
-      ansible.builtin.import_tasks: tasks/gen_dir_structure.yml
+      ansible.builtin.import_tasks: tasks/bootstrap/dir_structure_gen.yml
 
     - name: Prepare Host Networking and Security
       block:
         - name: Elevate for 'Prepare Host Networking and Security'
-          ansible.builtin.import_tasks: tasks/host_prep.yml
+          ansible.builtin.import_tasks: tasks/bootstrap/host_setup_gen.yml
       become: true
 
     - name: Process Installation Media
-      ansible.builtin.import_tasks: tasks/img_manager.yml
+      ansible.builtin.import_tasks: tasks/bootstrap/img_manager_gen.yml
 
     - name: Generate Configurations
-      ansible.builtin.import_tasks: tasks/gen_templates_pxe.yml
+      ansible.builtin.import_tasks: tasks/bootstrap/templates_pxe_gen.yml
 
     - name: Start Podman Services
       block:
         - name: Elevate for 'Start Podman Services'
-          ansible.builtin.import_tasks: tasks/container_mgmt.yml
+          ansible.builtin.import_tasks: tasks/bootstrap/container_gen.yml
       become: true
 
   handlers:
     - name: Load Host Prep Handlers
-      ansible.builtin.import_tasks: handlers/host_prep_handlers.yml
+      ansible.builtin.import_tasks: handlers/boostrap/prep_handlers.yml
