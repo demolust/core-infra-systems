@@ -39,3 +39,22 @@ navidrome_port: "4533"
 pxe_http_port: "80"
 pxe_interface: "{{ lookup('env', 'TARGET_PXE_INT') | default('enp0s31f6', true) }}"
 pxe_base_dir: "/data/srv/pxe"
+
+# UNIFI Controller data
+unifi_init_dir: "/data/srv/unifi/init"
+unifi_db_data_dir: "/data/srv/unifi/db"
+unifi_app_data_dir: "/data/srv/unifi/config"
+unifi_env_dir: "/data/srv/unifi/env"
+unifi_env_file: "{{ unifi_env_dir }}/unifi.env"
+unifi_ports:
+  - { host: 8443, container: 8443, proto: tcp }
+  - { host: 8080, container: 8080, proto: tcp }
+  - { host: 3478, container: 3478, proto: udp }
+  - { host: 10001, container: 10001, proto: udp }
+unifi_mongo_host: "{{ lookup('env', 'UNIFI_MONGO_HOST') | default('', true) }}"
+unifi_mongo_port: "{{ lookup('env', 'UNIFI_MONGO_PORT') | default('', true) }}"
+unifi_mongo_root_user: "{{ lookup('env', 'UNIFI_MONGO_ROOT_USER') | default('', true) }}"
+unifi_mongo_root_pass: "{{ lookup('env', 'UNIFI_MONGO_ROOT_PASS') | default('', true) }}"
+unifi_mongo_user: "{{ lookup('env', 'UNIFI_MONGO_USER') | default('', true) }}"
+unifi_mongo_pass: "{{ lookup('env', 'UNIFI_MONGO_PASS') | default('', true) }}"
+unifi_mongo_db_name: "{{ lookup('env', 'UNIFI_MONGO_DB_NAME') | default('', true) }}"

@@ -1,0 +1,12 @@
+[Unit]
+Description=Unifi Controller Pod
+After=network-online.target
+
+[Pod]
+PodName=unifi-controller
+{% for port in unifi_ports %}
+PublishPort={{ port.host }}:{{ port.container }}{{ '/udp' if port.proto == 'udp' else '' }}
+{% endfor %}
+
+[Install]
+WantedBy=default.target

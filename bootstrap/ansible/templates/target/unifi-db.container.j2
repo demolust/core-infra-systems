@@ -1,0 +1,15 @@
+[Unit]
+Description=Unifi Web UI
+
+[Container]
+ContainerName=unifi-db
+Image=docker.io/mongo:8.0
+EnvironmentFile={{ unifi_env_file }}
+Volume={{ unifi_db_data_dir }}:/data/db:Z
+Volume={{ unifi_init_dir }}:/docker-entrypoint-initdb.d:Z,ro
+Pod=unifi-controller.pod
+
+[Service]
+Restart=on-failure
+StartLimitIntervalSec=30
+StartLimitBurst=5

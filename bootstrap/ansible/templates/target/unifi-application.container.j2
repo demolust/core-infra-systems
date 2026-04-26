@@ -1,0 +1,15 @@
+[Unit]
+Description=Unifi MongoDB
+After=unifi-db.service
+
+[Container]
+ContainerName=unifi-application
+Image=lscr.io/linuxserver/unifi-network-application:latest
+EnvironmentFile={{ unifi_env_file }}
+Volume={{ unifi_app_data_dir }}:/config:Z
+Pod=unifi-controller.pod
+
+[Service]
+Restart=on-failure
+StartLimitIntervalSec=30
+StartLimitBurst=5

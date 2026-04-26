@@ -103,6 +103,14 @@
     immediate: true
   when: ansible_os_family == "RedHat"
 
+- name: Allow Unifi Controller ports via firewalld
+  firewalld:
+    port: "{{ item.host }}/{{ item.proto }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop: "{{ unifi_ports }}"
+
 - name: Allow PXE ports via firewalld
   ansible.posix.firewalld:
     service: "{{ item.name | default(omit) }}"

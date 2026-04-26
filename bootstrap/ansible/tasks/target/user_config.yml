@@ -218,6 +218,26 @@
     state: directory
     mode: '0755'
 
+- name: Ensure UNIFI config directories exists
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ unifi_env_dir }}"
+    - "{{ unifi_init_dir }}"
+    - "{{ unifi_db_data_dir }}"
+    - "{{ unifi_app_data_dir }}"
+
+- name: Deploy UNIFI controller init files
+  template:
+    src: target/{{ item.name }}
+    dest: "{{ item.dest }}"
+    mode: '0644'
+  loop:
+    - { name: "unifi.env.j2", dest: "{{ unifi_env_file }}" }
+    - { name: "init-mongo.js.j2", dest: "{{ unifi_init_dir }}/init-mongo.js" }
+
 - name: Deploy Navidrome Quadlet
   template:
     src: target/navidrome.container.j2
@@ -225,15 +245,33 @@
     mode: '0644'
   register: quadlet_def
 
+- name: Deploy UNIFI controller Quadlets
+  template:
+    src: target/{{ item.name }}
+    dest: "{{ admin_home_dir }}/.config/containers/systemd/{{ item.dest }}"
+    mode: '0644'
+  register: quadlet_defs
+  loop:
+    - { name: "unifi-controller.pod.j2", dest: "unifi-controller.pod" }
+    - { name: "unifi-db.container.j2", dest: "unifi-db.container" }
+    - { name: "unifi-application.container.j2", dest: "unifi-application.container" }
+
 - name: Reload systemd to generate service from Quadlet
   systemd:
     daemon_reload: true
     scope: user
-  when: quadlet_def.changed
+  when: quadlet_def.changed or quadlet_defs.changed
 
 - name: Ensure Navidrome is running
   systemd:
     name: navidrome
+    state: restarted
+    enabled: true
+    scope: user
+
+- name: Ensure UNIFI controller is running
+  systemd:
+    name: unifi-controller-pod
     state: restarted
     enabled: true
     scope: user

@@ -1,0 +1,17 @@
+// Switch to the 'unifi' database to create the user
+db = db.getSiblingDB("{{ unifi_mongo_db_name }}");
+
+// Create the user with roles for ALL required UniFi databases
+db.createUser({
+  user: "{{ unifi_mongo_user }}",
+  pwd: "{{ unifi_mongo_pass }}",
+  roles: [
+    { role: "dbOwner", db: "unifi" },
+    { role: "dbOwner", db: "unifi_stat" },
+    { role: "dbOwner", db: "unifi_audit" }
+  ]
+});
+
+// Explicitly create the databases/collections to ensure they exist
+db.getSiblingDB("unifi_stat").createCollection("stat");
+db.getSiblingDB("unifi_audit").createCollection("audit");
