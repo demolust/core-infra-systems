@@ -1,0 +1,33 @@
+# Aliases gitops_alises.sh - Managed by Ansible/Jinja2
+
+alias ansible='podman run --rm -it \
+  -v "{{ gitops_tooling.repo_path }}:/workspace" \
+  -v "{{ gitops_tooling.ansible.cache_path }}:/ansible_cache" \
+  -e ANSIBLE_COLLECTIONS_PATHS=/ansible_cache \
+  -w /workspace \
+  {{ gitops_tooling.ansible.image }}:{{ gitops_tooling.ansible.version }} ansible'
+
+alias ansible-playbook='podman run --rm -it \
+  -v "{{ gitops_tooling.repo_path }}:/workspace" \
+  -v "{{ gitops_tooling.ansible.cache_path }}:/ansible_cache" \
+  -e ANSIBLE_COLLECTIONS_PATHS=/ansible_cache \
+  -w /workspace \
+  {{ gitops_tooling.ansible.image }}:{{ gitops_tooling.ansible.version }} ansible-playbook'
+
+alias ansible-galaxy='podman run --rm -it \
+  -v "{{ gitops_tooling.repo_path }}:/workspace" \
+  -v "{{ gitops_tooling.ansible.cache_path }}:/ansible_cache" \
+  -e ANSIBLE_COLLECTIONS_PATHS=/ansible_cache \
+  -w /workspace \
+  {{ gitops_tooling.ansible.image }}:{{ gitops_tooling.ansible.version }} ansible-galaxy'
+
+alias ansible-vault='podman run --rm -it \
+  -v "{{ gitops_tooling.repo_path }}:/workspace" \
+  -w /workspace \
+  {{ gitops_tooling.ansible.image }}:{{ gitops_tooling.ansible.version }} ansible-vault'
+
+alias terraform='podman run --rm -it \
+  -v "{{ gitops_tooling.repo_path }}:/workspace" \
+  -v "{{ gitops_tooling.terraform.cache_path }}:/terraform_cache" \
+  -w /workspace \
+  {{ gitops_tooling.terraform.image }}:{{ gitops_tooling.terraform.version }}'

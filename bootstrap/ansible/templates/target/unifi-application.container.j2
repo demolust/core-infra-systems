@@ -1,12 +1,12 @@
 [Unit]
-Description=Unifi MongoDB
+Description=Unifi Web UI
 After=unifi-db.service
 
 [Container]
 ContainerName=unifi-application
 Image=lscr.io/linuxserver/unifi-network-application:latest
 EnvironmentFile={{ unifi_env_file }}
-Volume={{ unifi_app_data_dir }}:/config:Z
+Volume={{ unifi_paths.config }}:/config:Z,U
 Pod=unifi-controller.pod
 
 [Service]

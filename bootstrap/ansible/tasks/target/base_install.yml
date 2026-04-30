@@ -1,4 +1,8 @@
 ---
+- name: Gather user info (needed for systemd UIDs)
+  ansible.builtin.getent:
+    database: passwd
+
 - name: Get current arch
   shell: "uname -m"
   register: arch
@@ -40,6 +44,7 @@
     name:
       - dracut-config-rescue
       - ibus
+      - systemd-container
       - ndctl
       - parallel
       - nmap
@@ -201,7 +206,7 @@
   args:
     creates: /usr/local/bin/tmux
 
-- name: Set id3v2 envs
+- name: Set build rpms envs
   ansible.builtin.set_fact:
     id3lib_srpm_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/source/tree/Packages/i/id3lib-3.8.3-61.fc43.src.rpm"
     id3v2_srpm_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/source/tree/Packages/i/id3v2-0.1.12-40.fc43.src.rpm"
@@ -253,9 +258,118 @@
 - name: Install built catdoc package
   shell: "dnf install -y /root/rpmbuild/RPMS/{{ current_arch }}/catdoc-*.rpm"
 
-- name: Create|Update the SAMBA {{ samba_share_group }} group
+- name: Create|Update the system groups
   ansible.builtin.group:
-    name: "{{ samba_share_group }}"
+    name: "{{ item.value }}"
+    state: present
+    system: true
+  loop: "{{ system_groups | dict2items }}"
+
+- name: Create|Update the system users
+  ansible.builtin.user:
+    name: "{{ item.value.name }}"
+    home: "/var/lib/{{ item.value.name }}"
+    create_home: true
+    system: true
+    shell: "{{ item.value.shell | default('/usr/sbin/nologin') }}"
+    groups: "{{ item.value.groups | default(omit) }}"
+    append: true
+    state: present
+  loop: "{{ system_users | dict2items }}"
+
+- name: Ensure system users Quadlet directories exist
+  ansible.builtin.file:
+    path: "/var/lib/{{ item.value.name }}/.config/containers/systemd"
+    state: directory
+    owner: "{{ item.value.name }}"
+    group: "{{ item.value.name }}"
+    mode: '0755'
+  loop: "{{ system_users | dict2items }}"
+
+- name: Enable systemd linger for system users
+  ansible.builtin.command:
+    cmd: "loginctl enable-linger {{ item.value.name }}"
+    creates: "/var/lib/systemd/linger/{{ item.value.name }}"
+  loop: "{{ system_users | dict2items }}"
+
+- name: "Ensure base data directory exists"
+  ansible.builtin.file:
+    path: "{{ data_basedir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: "Create specific directory tree with permissions and setgid"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+    setype: "{{ item.value.setype | default(omit) }}"
+  loop: "{{ data_directories }}"
+
+- name: Ensure all Unifi config directories exist
+  ansible.builtin.file:
+    path: "{{ item.value }}"
+    state: directory
+    owner: "{{ system_users.unifi.name }}"
+    group: "{{ system_groups.unifi }}"
+    mode: '0755'
+  loop: "{{ unifi_paths | dict2items }}"
+
+- name: Deploy UNIFI controller init files
+  template:
+    src: target/{{ item.name }}
+    dest: "{{ item.dest }}"
+    owner: "{{ system_users.unifi.name }}"
+    group: "{{ system_groups.unifi }}"
+    mode: '0644'
+  loop:
+    - { name: "unifi.env.j2", dest: "{{ unifi_env_file }}" }
+    - { name: "init-mongo.js.j2", dest: "{{ unifi_paths.init }}/init-mongo.js" }
+
+- name: Create directories for Samba shares
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: "{{ system_groups.share }}"
+    # Need `other` (e.g. Podman containers) to have execute
+    mode: '2775'
+  loop: "{{ samba_custom_shares }}"
+
+- name: Ensure subuid/subgid ranges for system users
+  ansible.builtin.lineinfile:
+    path: "/etc/{{ item[1] }}"
+    line: "{{ item[0].value.name }}:{{ 100000 + (ansible_loop.index0 * 65536) }}:65536"
+    regexp: "^{{ item[0].value.name }}:"
+    state: present
+  loop: "{{ system_users | dict2items | product(['subuid', 'subgid']) | list }}"
+  loop_control:
+    extended: true
+
+- name: Deploy gitops_aliases.sh to profile.d
+  template:
+    src: target/gitops_aliases.sh.j2
+    dest: /etc/profile.d/gitops_aliases.sh
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Ensure Navidrome Music directory exists
+  ansible.builtin.file:
+    path: "{{ navidrome_music_dir }}"
+    owner: "{{ admin_username }}"
+    group: "{{ system_groups.share }}"
+    state: directory
+    mode: '2775'
+
+- name: Allow containers to read shared Music directory
+  community.general.sefcontext:
+    target: "{{ navidrome_music_dir }}(/.*)?"
+    setype: container_file_t
     state: present
 
 - name: Harden SSH configuration

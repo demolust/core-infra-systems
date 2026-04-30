@@ -15,16 +15,6 @@
     remote_netmask: "{{ network_info.stdout.split('/')[1] }}"
     remote_server_ip: "{{ ip_info.stdout.split('/')[0] }}"
 
-- name: Create directory structure for Samba
-  ansible.builtin.file:
-    path: "{{ item.path }}"
-    state: directory
-    owner: root
-    group: "{{ samba_share_group }}"
-    # Need `other` (e.g. Podman containers) to have execute
-    mode: '2775'
-  loop: "{{ samba_custom_shares }}"
-
 - name: Install Samba packages (Fedora/RedHat)
   ansible.builtin.dnf:
     name:
@@ -160,7 +150,7 @@
     state: directory
     mode: '0755'
 
-- name: Deploy Quadlet files
+- name: Deploy root Quadlet files
   template:
     src: "target/{{ item.src }}"
     dest: "/etc/containers/systemd/{{ item.dest }}"

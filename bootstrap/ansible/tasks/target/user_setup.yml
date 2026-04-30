@@ -10,7 +10,7 @@
     password: "{{ admin_password_hash }}"
     shell: /usr/bin/zsh
     create_home: true
-    groups: wheel,{{ samba_share_group }},{{ admin_username }}
+    groups: wheel,{{ system_groups.share }},{{ system_groups.gitops }},{{ admin_username }}
     append: true
     state: present
 

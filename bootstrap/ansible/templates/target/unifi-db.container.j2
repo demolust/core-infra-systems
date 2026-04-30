@@ -1,12 +1,12 @@
 [Unit]
-Description=Unifi Web UI
+Description=Unifi MongoDB
 
 [Container]
 ContainerName=unifi-db
 Image=docker.io/mongo:8.0
 EnvironmentFile={{ unifi_env_file }}
-Volume={{ unifi_db_data_dir }}:/data/db:Z
-Volume={{ unifi_init_dir }}:/docker-entrypoint-initdb.d:Z,ro
+Volume={{ unifi_paths.db }}:/data/db:Z,U
+Volume={{ unifi_paths.init }}:/docker-entrypoint-initdb.d:Z,U,ro
 Pod=unifi-controller.pod
 
 [Service]

@@ -1,0 +1,36 @@
+---
+- name: Gather user info (needed for systemd UIDs)
+  ansible.builtin.getent:
+    database: passwd
+
+- name: "Deploy {{ app.name }} Quadlet Templates"
+  ansible.builtin.template:
+    src: "target/{{ item.src }}"
+    dest: "/var/lib/{{ app.user }}/.config/containers/systemd/{{ item.dest }}"
+    owner: "{{ app.user }}"
+    group: "{{ app.group }}"
+    mode: '0644'
+  loop: "{{ app.templates }}"
+  register: app_deployment
+
+- name: "Reload and Restart {{ app.name }} Service"
+  become_user: "{{ app.user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.getent_passwd[app.user][1] }}"
+  ansible.builtin.systemd:
+    name: "{{ app.service }}"
+    state: restarted
+    enabled: true
+    daemon_reload: true
+    scope: user
+  when: app_deployment.changed
+
+- name: "Enable podman-auto-update timer"
+  become_user: "{{ app.user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.getent_passwd[app.user][1] }}"
+  ansible.builtin.systemd:
+    name: "podman-auto-update.timer"
+    state: restarted
+    enabled: true
+    scope: user

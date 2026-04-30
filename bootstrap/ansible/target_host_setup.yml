@@ -50,6 +50,12 @@
       vars:
         ansible_become_user: "{{ admin_username }}"
 
+    - name: Deploy and Configure all Quadlet Services
+      ansible.builtin.include_tasks: tasks/target/deploy_apps.yml
+      loop: "{{ quadlet_services }}"
+      loop_control:
+        loop_var: app
+
   handlers:
     - name: Load Target Host Handlers
       ansible.builtin.import_tasks: handlers/target/host_handlers.yml
