@@ -61,6 +61,20 @@
   args:
     creates: "{{ base_dir }}/www/{{ selected_arch }}/BaseOS"
 
+- name: Find all directories inside extracted path
+  ansible.builtin.find:
+    paths: "{{ base_dir }}/www/"
+    file_type: directory
+    recurse: true
+  register: found_directories
+
+- name: Set correct permissions of the directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: 0755
+  loop:
+    "{{ found_directories.files }}"
+
 - name: Download the latest iPXE files
   ansible.builtin.get_url:
     url: "https://boot.ipxe.org/{{ boot_files[selected_arch].ipxe_arch }}/ipxe.efi"

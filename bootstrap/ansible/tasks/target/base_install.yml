@@ -4,12 +4,12 @@
     database: passwd
 
 - name: Get current arch
-  shell: "uname -m"
+  ansible.builtin.shell: "uname -m"
   register: arch
   changed_when: false
 
 - name: Set facts for arch
-  set_fact:
+  ansible.builtin.set_fact:
     current_arch: "{{ arch.stdout }}"
 
 - name: Ensure major dependencies are installed (EPEL/config-manager)
@@ -24,13 +24,13 @@
     - ansible_distribution != "Fedora"
 
 - name: Check if CRB is already enabled
-  shell: dnf repolist | grep -qi "^crb"
+  ansible.builtin.shell: dnf repolist | grep -qi "^crb"
   register: crb_check
   failed_when: false
   changed_when: false
 
 - name: Enable the CRB repository
-  command: dnf config-manager --set-enabled crb
+  ansible.builtin.command: dnf config-manager --set-enabled crb
   register: crb_enable
   when: crb_check.rc != 0
 
@@ -108,7 +108,6 @@
       - pdftk-java
       - pandoc
       - poppler
-      - mupdf
       - ffmpegthumbnailer
       - tumbler
       - ImageMagick
@@ -170,19 +169,42 @@
       - rpmdevtools
       - doxygen
       - tk
+      - python3-toml
+      - python3-tomli
+      - pyproject-rpm-macros
+      - brotli-devel
+      - curl-devel
+      - freeglut-devel
+      - freetype-devel
+      - gumbo-parser-devel
+      - harfbuzz-devel
+      - jbig2dec-devel
+      - leptonica-devel
+      - libXext-devel
+      - libXi-devel
+      - libXrandr-devel
+      - libjpeg-devel
+      - mesa-libEGL-devel
+      - mesa-libGL-devel
+      - mesa-libGLU-devel
+      - openjpeg2-devel
+      - python3-clang
+      - python3-devel
+      - swig
+      - tesseract-devel
     state: present
     update_cache: true
   when: ansible_os_family == "RedHat"
 
 - name: Clone Neovim Source
-  git:
+  ansible.builtin.git:
     repo: https://github.com/neovim/neovim
     dest: /tmp/neovim
     version: stable
     depth: 1
 
 - name: Build Neovim from source
-  shell: |
+  ansible.builtin.shell: |
     cd /tmp/neovim
     make CMAKE_BUILD_TYPE=RelWithDebInfo
     make install
@@ -190,14 +212,14 @@
     creates: /usr/local/bin/nvim
 
 - name: Clone tmux Source
-  git:
+  ansible.builtin.git:
     repo: https://github.com/tmux/tmux
     dest: /tmp/tmux
     version: 3.6a
     depth: 1
 
 - name: Build tmux from source
-  shell: |
+  ansible.builtin.shell: |
     cd /tmp/tmux
     sh autogen.sh
     ./configure
@@ -211,6 +233,7 @@
     id3lib_srpm_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/source/tree/Packages/i/id3lib-3.8.3-61.fc43.src.rpm"
     id3v2_srpm_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/source/tree/Packages/i/id3v2-0.1.12-40.fc43.src.rpm"
     catdoc_srpm_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/source/tree/Packages/c/catdoc-0.95-28.fc43.src.rpm"
+    mupdf_srpm_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/source/tree/Packages/m/mupdf-1.26.9-3.fc43.src.rpm"
     build_dir: "/tmp/builds"
 
 - name: Create build directory
@@ -219,44 +242,40 @@
     state: directory
     mode: '0755'
 
-- name: Download id3lib SRPM
+- name: Download required SRPMs
   ansible.builtin.get_url:
-    url: "{{ id3lib_srpm_url }}"
-    dest: "{{ build_dir }}/id3lib.src.rpm"
+    url: "{{ item.url }}"
+    dest: "{{ build_dir }}/{{ item.dest }}"
+  loop:
+    - { url: "{{ id3lib_srpm_url }}", dest: "id3lib.src.rpm" }
+    - { url: "{{ id3v2_srpm_url }}",  dest: "id3v2.src.rpm" }
+    - { url: "{{ catdoc_srpm_url }}", dest: "catdoc.src.rpm" }
+    - { url: "{{ mupdf_srpm_url }}",  dest: "mupdf.src.rpm" }
 
-- name: Download id3v2 SRPM
-  ansible.builtin.get_url:
-    url: "{{ id3v2_srpm_url }}"
-    dest: "{{ build_dir }}/id3v2.src.rpm"
-
-- name: Download catdoc SRPM
-  ansible.builtin.get_url:
-    url: "{{ catdoc_srpm_url }}"
-    dest: "{{ build_dir }}/catdoc.src.rpm"
-
-- name: Rebuild id3lib (Library)
-  command: "rpmbuild --rebuild {{ build_dir }}/id3lib.src.rpm"
+- name: Rebuild id3lib (Dependency)
+  ansible.builtin.command: "rpmbuild --rebuild {{ build_dir }}/id3lib.src.rpm"
   args:
     creates: "/root/rpmbuild/RPMS/{{ current_arch }}/id3lib-3.8.3-61.el9.{{ current_arch }}.rpm"
 
-- name: Install built id3lib packages
-  shell: "dnf install -y /root/rpmbuild/RPMS/{{ current_arch }}/id3lib-*.rpm"
+- name: Install id3lib
+  ansible.builtin.shell: "dnf install -y /root/rpmbuild/RPMS/{{ current_arch }}/id3lib-*.rpm"
+  register: dnf_init
+  changed_when: "'Nothing to do' not in dnf_init.stdout"
 
-- name: Rebuild id3v2 (Tool)
-  command: "rpmbuild --rebuild {{ build_dir }}/id3v2.src.rpm"
+- name: Rebuild SRPMs
+  ansible.builtin.command: "rpmbuild --rebuild {{ build_dir }}/{{ item.srpm }}.src.rpm"
   args:
-    creates: "/root/rpmbuild/RPMS/{{ current_arch }}/id3v2-0.1.12-40.el9.{{ current_arch }}.rpm"
+    creates: "/root/rpmbuild/RPMS/{{ current_arch }}/{{ item.creates }}.{{ current_arch }}.rpm"
+  loop: &rpm_list
+    - { srpm: 'id3v2',  creates: 'id3v2-0.1.12-40.el9' }
+    - { srpm: 'catdoc', creates: 'catdoc-0.95-28.el9' }
+    - { srpm: 'mupdf',  creates: 'mupdf-1.26.9-3.el9' }
 
-- name: Install built id3v2 package
-  shell: "dnf install -y /root/rpmbuild/RPMS/{{ current_arch }}/id3v2-*.rpm"
-
-- name: Rebuild catdoc (Tool)
-  command: "rpmbuild --rebuild {{ build_dir }}/catdoc.src.rpm"
-  args:
-    creates: "/root/rpmbuild/RPMS/{{ current_arch }}/catdoc-0.95-28.el9.{{ current_arch }}.rpm"
-
-- name: Install built catdoc package
-  shell: "dnf install -y /root/rpmbuild/RPMS/{{ current_arch }}/catdoc-*.rpm"
+- name: Install built RPM packages
+  ansible.builtin.shell: "dnf install -y /root/rpmbuild/RPMS/{{ current_arch }}/{{ item.srpm }}-*.rpm"
+  loop: *rpm_list
+  register: dnf_output
+  changed_when: "'Nothing to do' not in dnf_output.stdout"
 
 - name: Create|Update the system groups
   ansible.builtin.group:
@@ -320,7 +339,7 @@
   loop: "{{ unifi_paths | dict2items }}"
 
 - name: Deploy UNIFI controller init files
-  template:
+  ansible.builtin.template:
     src: target/{{ item.name }}
     dest: "{{ item.dest }}"
     owner: "{{ system_users.unifi.name }}"
@@ -351,7 +370,7 @@
     extended: true
 
 - name: Deploy gitops_aliases.sh to profile.d
-  template:
+  ansible.builtin.template:
     src: target/gitops_aliases.sh.j2
     dest: /etc/profile.d/gitops_aliases.sh
     owner: root
@@ -366,11 +385,33 @@
     state: directory
     mode: '2775'
 
-- name: Allow containers to read shared Music directory
+- name: Ensure public_content_rw_t context is defined for data_basedir and its contents
   community.general.sefcontext:
-    target: "{{ navidrome_music_dir }}(/.*)?"
-    setype: container_file_t
+    target: "{{ item }}"
+    setype: public_content_rw_t
     state: present
+  loop:
+    - "{{ data_basedir }}"
+    - "{{ data_basedir }}(/.*)?"
+  register: selinux_context_changed
+
+- name: Apply new SELinux context to files on disk (restorecon)
+  ansible.builtin.command: "restorecon -R -v {{ data_basedir }}"
+  when: selinux_context_changed.changed
+  changed_when: true
+
+- name: Add selinux booleans to allow general interactation with public shared content
+  ansible.posix.seboolean:
+    name: "{{ item }}"
+    state: true
+    persistent: true
+  loop:
+    # Containers read & interact public shared content
+    - container_read_public_content
+    - container_manage_cgroup
+    - virt_use_samba
+    # Samba read/write public_content_rw_t shares
+    - smbd_anon_write
 
 - name: Harden SSH configuration
   ansible.builtin.lineinfile:

@@ -1,5 +1,5 @@
 ---
-- name: "Run restorecon"
+- name: Run restorecon
   command: "restorecon -Rv {{ item.path }}"
   loop: "{{ samba_custom_shares }}"
 

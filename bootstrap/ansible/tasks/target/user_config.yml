@@ -4,58 +4,35 @@
     rustup_sh_url: "https://sh.rustup.rs"
 
 - name: Clone dotfiles repository
-  git:
+  ansible.builtin.git:
     repo: "{{ dotfiles_repo }}"
     dest: "{{ admin_home_dir }}/dotfiles"
     version: main
 
-- name: Ensure ~/.config directory exists
-  file:
-    path: "{{ admin_home_dir }}/.config"
-    state: directory
-    mode: '0755'
-
-- name: Ensure systemd user directory exists
-  file:
-    path: "{{ admin_home_dir }}/.config/systemd/user/"
-    state: directory
-    mode: '0755'
-
-- name: Ensure ~/.local directory exists
-  file:
-    path: "{{ admin_home_dir }}/.local"
-    state: directory
-    mode: '0755'
-
-- name: Ensure XDG cargo bin directory exists
-  file:
-    path: "{{ admin_home_dir }}/.local/share/cargo/bin"
-    state: directory
-    mode: '0755'
-
-- name: Ensure XDG go bin directory exists
-  file:
-    path: "{{ admin_home_dir }}/.local/share/go/bin"
-    state: directory
-    mode: '0755'
-
-- name: Ensure the local installs directory exists
+- name: Ensure required user directories exist
   ansible.builtin.file:
-    path: ~/.local/installs
+    path: "{{ item }}"
     state: directory
     mode: '0755'
+  loop:
+    - "{{ admin_home_dir }}/.config/systemd/user/"
+    - "{{ admin_home_dir }}/.local/share/cargo/bin"
+    - "{{ admin_home_dir }}/.local/share/go/bin"
+    - "{{ admin_home_dir }}/.local/installs"
 
-- name: Sync .config files from repo
-  shell: "rsync -havzP {{ admin_home_dir }}/dotfiles/.config/ {{ admin_home_dir }}/.config/"
-
-- name: Sync .local files from repo
-  shell: "rsync -havzP {{ admin_home_dir }}/dotfiles/.local/ {{ admin_home_dir }}/.local/"
-
-- name: Sync .zsh* files from repo
-  shell: "rsync -havzP {{ admin_home_dir }}/dotfiles/.zsh* {{ admin_home_dir }}/"
+- name: Sync dotfiles from repo
+  ansible.posix.synchronize:
+    src: "{{ admin_home_dir }}/dotfiles/{{ item.src }}"
+    dest: "{{ admin_home_dir }}/{{ item.dest }}"
+  delegate_to: "{{ inventory_hostname }}"
+  loop:
+    - { src: '.config/', dest: '.config/' }
+    - { src: '.local/',  dest: '.local/' }
+    - { src: '.zshrc',    dest: '.zshrc' }
+    - { src: '.zshenv',    dest: '.zshenv' }
 
 - name: Trigger Zsh setup
-  shell: |
+  ansible.builtin.shell: |
     source ~/.zshenv
     source ~/.zshrc
     # Produce some output after first run
@@ -103,7 +80,7 @@
     mode: '0644'
 
 - name: Install latest go
-  shell: |
+  ansible.builtin.shell: |
     source ~/.zshenv
     source ~/.zshrc
     {{ admin_home_dir }}/dotfiles/scripts/install_go.sh
@@ -112,7 +89,7 @@
     chdir: "{{ admin_home_dir }}"
 
 - name: Trigger install tools script
-  shell: |
+  ansible.builtin.shell: |
     source ~/.zshenv
     source ~/.zshrc
     # Comment for debugging as it can hit github api rate limit
@@ -128,25 +105,25 @@
     var: script_output.stdout_lines
 
 - name: Ensure nvim cache directory exists
-  file:
+  ansible.builtin.file:
     path: "{{ admin_home_dir }}/.cache/nvim"
     state: directory
 
 - name: Install Python 3.12 via uv
-  command: uv python install 3.12
+  ansible.builtin.command: uv python install 3.12
   register: uv_install
   changed_when: "'installed' in uv_install.stdout"
 
 - name: Create uv virtualenv for neovim
-  command: uv venv {{ admin_home_dir }}/.cache/nvim/uv-python --python 3.12
+  ansible.builtin.command: uv venv {{ admin_home_dir }}/.cache/nvim/uv-python --python 3.12
   args:
     creates: "{{ admin_home_dir }}/.cache/nvim/uv-python"
 
 - name: Install pynvim into uv venv for neovim
-  command: "uv pip install pynvim --python {{ admin_home_dir }}/.cache/nvim/uv-python/bin/python"
+  ansible.builtin.command: "uv pip install pynvim --python {{ admin_home_dir }}/.cache/nvim/uv-python/bin/python"
 
 - name: Install uv tools
-  shell: |
+  ansible.builtin.shell: |
     source ~/.zshenv
     source ~/.zshrc
     tools=("${(@f)$(< {{ admin_home_dir }}/dotfiles/other_configs/uv_tools.txt)}")
@@ -167,7 +144,7 @@
     var: uv_tools_output.stderr_lines
 
 - name: Install tmux tpm
-  shell: |
+  ansible.builtin.shell: |
     source ~/.zshenv
     source ~/.zshrc
     {{ admin_home_dir }}/dotfiles/scripts/install_tmux_tpm.sh
@@ -176,7 +153,7 @@
     chdir: "{{ admin_home_dir }}"
 
 - name: Install unoserver
-  shell: |
+  ansible.builtin.shell: |
     source ~/.zshenv
     source ~/.zshrc
     {{ admin_home_dir }}/dotfiles/scripts/install_unoserver.sh
@@ -185,7 +162,7 @@
     chdir: "{{ admin_home_dir }}"
 
 - name: Install tree-sitter-cli via Cargo
-  shell: |
+  ansible.builtin.shell: |
     source ~/.zshenv
     source ~/.zshrc
     cargo install tree-sitter-cli --locked
@@ -194,13 +171,13 @@
     chdir: "{{ admin_home_dir }}"
 
 - name: Ensure systemd contianer user directory exists
-  file:
+  ansible.builtin.file:
     path: "{{ admin_home_dir }}/.config/containers/systemd"
     state: directory
     mode: '0755'
 
 - name: Enable podman-auto-update timer
-  systemd:
+  ansible.builtin.systemd:
     name: podman-auto-update.timer
     state: started
     enabled: true

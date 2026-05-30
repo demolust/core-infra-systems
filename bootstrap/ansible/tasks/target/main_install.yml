@@ -1,16 +1,16 @@
 ---
 - name: Get Network Subnet and Mask
-  shell: "ip route show dev {{ pxe_interface }} | grep 'proto kernel' | awk '{print $1}'"
+  ansible.builtin.shell: "ip route show dev {{ pxe_interface }} | grep 'proto kernel' | awk '{print $1}'"
   register: network_info
   changed_when: false
 
 - name: Get Network IP
-  shell: "ip -o -4 addr show {{ pxe_interface }} | awk '{print $4}'"
+  ansible.builtin.shell: "ip -o -4 addr show {{ pxe_interface }} | awk '{print $4}'"
   register: ip_info
   changed_when: false
 
 - name: Set facts for subnet and mask
-  set_fact:
+  ansible.builtin.set_fact:
     remote_subnet: "{{ network_info.stdout.split('/')[0] }}"
     remote_netmask: "{{ network_info.stdout.split('/')[1] }}"
     remote_server_ip: "{{ ip_info.stdout.split('/')[0] }}"
@@ -58,19 +58,20 @@
 - name: Apply SELinux file context for Samba shares
   community.general.sefcontext:
     target: "{{ item.path }}(/.*)?"
-    setype: samba_share_t
+    #setype: samba_share_t
+    setype: public_content_rw_t
     state: present
   loop: "{{ samba_custom_shares }}"
   register: selinux_context
-  notify: "Run restorecon"
+  notify: Run restorecon
   when: ansible_os_family == "RedHat"
 
-- name: "Run restorecon"
-  command: "restorecon -Rv {{ item.path }}"
+- name: Run restorecon
+  ansible.builtin.command: "restorecon -Rv {{ item.path }}"
   loop: "{{ samba_custom_shares }}"
 
 - name: Start and enable Samba services
-  service:
+  ansible.builtin.systemd:
     name: "{{ item }}"
     state: started
     enabled: true
@@ -80,7 +81,7 @@
   when: ansible_os_family == "RedHat"
 
 - name: Enable podman-auto-update timer
-  systemd:
+  ansible.builtin.systemd:
     name: podman-auto-update.timer
     state: started
     enabled: true
@@ -94,7 +95,7 @@
   when: ansible_os_family == "RedHat"
 
 - name: Allow Unifi Controller ports via firewalld
-  firewalld:
+  ansible.posix.firewalld:
     port: "{{ item.host }}/{{ item.proto }}"
     permanent: true
     state: enabled
@@ -145,13 +146,13 @@
   register: config_results
 
 - name: Ensure root systemd contianer directory exists
-  file:
+  ansible.builtin.file:
     path: "/etc/containers/systemd"
     state: directory
     mode: '0755'
 
 - name: Deploy root Quadlet files
-  template:
+  ansible.builtin.template:
     src: "target/{{ item.src }}"
     dest: "/etc/containers/systemd/{{ item.dest }}"
   loop:
@@ -162,12 +163,12 @@
   register: quadlet_results
 
 - name: Reload systemd to generate service from Quadlet
-  systemd:
+  ansible.builtin.systemd:
     daemon_reload: true
   when: quadlet_results.changed
 
 - name: Start pxe pod
-  systemd:
+  ansible.builtin.systemd:
     name: pxe-pod.service
     state: restarted
     enabled: true
