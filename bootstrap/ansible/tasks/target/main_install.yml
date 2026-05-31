@@ -124,6 +124,7 @@
     - "configs"
     - "isos"
     - "images"
+    - "tftp/ipxe/configs"
     - "tftp/x86_64/rescue"
     - "tftp/aarch64/rescue"
     - "www/ipxe/configs"
@@ -142,8 +143,19 @@
     - { src: 'nginx.conf.j2',   dest: "{{ pxe_base_dir }}/configs/nginx.conf" }
     - { src: 'tftpd.map.j2',    dest: "{{ pxe_base_dir }}/configs/tftpd.map" }
     - { src: 'grub.cfg.j2',     dest: "{{ pxe_base_dir }}/tftp/grub.cfg" }
+    - { src: 'boot.ipxe.j2',    dest: "{{ pxe_base_dir }}/tftp/ipxe/configs/boot.ipxe" }
     - { src: 'boot.ipxe.j2',    dest: "{{ pxe_base_dir }}/www/ipxe/configs/boot.ipxe" }
   register: config_results
+
+- name: Download the latest iPXE files mapped to local architecture names
+  ansible.builtin.get_url:
+    url: "https://boot.ipxe.org/{{ item.remote_arch }}/ipxe.efi"
+    dest: "{{ pxe_base_dir }}/tftp/{{ item.local_arch }}/ipxe.efi"
+    mode: '0644'
+    force: false
+  loop:
+    - { remote_arch: 'x86_64-efi', local_arch: 'x86_64' }
+    - { remote_arch: 'arm64-efi', local_arch: 'aarch64' }
 
 - name: Ensure root systemd contianer directory exists
   ansible.builtin.file:

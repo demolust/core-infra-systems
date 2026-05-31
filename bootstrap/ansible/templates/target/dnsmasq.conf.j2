@@ -26,19 +26,19 @@ pxe-prompt="Network Booting...", 1
 # Syntax: pxe-service=[tag], <CSA string>, <Menu Text>, <Basename>
 # Assign Bootloader based on Architecture + SB
 # If Secure Boot is ON, always point to SHIM, not GRUB
-pxe-service=tag:!is_ipxe,tag:x86_64, BC_EFI, "Boot UEFI x86_64", /x86_64/shimx64.efi
-pxe-service=tag:!is_ipxe,tag:x86_64, X86-64_EFI, "Boot UEFI x86_64", /x86_64/shimx64.efi
-pxe-service=tag:!is_ipxe,tag:aarch64, 11, "Boot UEFI aarch64", /aarch64/shimaa64.efi
+#pxe-service=tag:!is_ipxe,tag:x86_64, BC_EFI, "Boot UEFI x86_64", /x86_64/shimx64.efi
+#pxe-service=tag:!is_ipxe,tag:x86_64, X86-64_EFI, "Boot UEFI x86_64", /x86_64/shimx64.efi
+#pxe-service=tag:!is_ipxe,tag:aarch64, 11, "Boot UEFI aarch64", /aarch64/shimaa64.efi
 
 # If Secure Boot is OFF, always point to ipxe
 # Initial UEFI PXE boot: serve the iPXE binary
-#pxe-service=tag:!is_ipxe,tag:x86_64, BC_EFI, "Boot iPXE x86_64", /x86_64/ipxe.efi
-#pxe-service=tag:!is_ipxe,tag:x86_64, X86-64_EFI, "Boot iPXE x86_64", /x86_64/ipxe.efi
-#pxe-service=tag:!is_ipxe,tag:aarch64, 11, "Boot UEFI aarch64", /aarch64/ipxe.efi
+pxe-service=tag:!is_ipxe,tag:x86_64, BC_EFI, "Boot iPXE x86_64", /x86_64/ipxe.efi
+pxe-service=tag:!is_ipxe,tag:x86_64, X86-64_EFI, "Boot iPXE x86_64", /x86_64/ipxe.efi
+pxe-service=tag:!is_ipxe,tag:aarch64, 11, "Boot UEFI aarch64", /aarch64/ipxe.efi
 # Second boot stage (iPXE makes a request): serve the script via TFTP
-#pxe-service=tag:is_ipxe,tag:x86_64, BC_EFI, "Load iPXE Config", /ipxe/configs/boot.ipxe
-#pxe-service=tag:is_ipxe,tag:x86_64, X86-64_EFI, "Load iPXE Config", /ipxe/configs/boot.ipxe
-#pxe-service=tag:is_ipxe,tag:aarch64, 11, "Load iPXE Config", /ipxe/configs/boot.ipxe
+pxe-service=tag:is_ipxe,tag:x86_64, BC_EFI, "Load iPXE Config", /ipxe/configs/boot.ipxe
+pxe-service=tag:is_ipxe,tag:x86_64, X86-64_EFI, "Load iPXE Config", /ipxe/configs/boot.ipxe
+pxe-service=tag:is_ipxe,tag:aarch64, 11, "Load iPXE Config", /ipxe/configs/boot.ipxe
 
 # Force a safe MTU
 dhcp-option=26,1460

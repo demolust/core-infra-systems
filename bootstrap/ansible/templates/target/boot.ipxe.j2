@@ -1,17 +1,26 @@
 #!ipxe
 # PXE containerized boot.ipxe - Managed by Ansible/Jinja2
-# Architecture Detection
-# iPXE uses 'arm64', but often ISOs use 'aarch64' as the folder name.
-set arch_path ${arch}
-isset ${arch} && goto arch_check || set arch_path x86_64
-
-:arch_check
 # Ensure the network interface is up
-ifconf --ok || dhcp
-# Map iPXE 'arm64' to common 'aarch64' naming convention if necessary
-item --key a  aarch64  AArch64 (ARM)
-item --key x  x86_64   x86_64 (Intel/AMD)
+isset ${net0/ip} || dhcp
 
+# Architecture Detection
+# If ${arch} is empty, default to x86_64, otherwise jump to its specific block
+# iPXE uses 'arm64', but often ISOs use 'aarch64' as the folder name so need to map iPXE 'arm64' to common 'aarch64' naming convention
+isset ${arch} && goto arch_${arch} || goto arch_x86_64
+
+:arch_x86_64
+set arch_path x86_64
+goto vars_complete
+
+:arch_arm64
+set arch_path aarch64
+goto vars_complete
+
+:arch_riscv64
+set arch_path riscv64
+goto vars_complete
+
+:vars_complete
 # Global Variables
 set base_url http://{{ remote_server_ip }}:{{ pxe_http_port }}
 
