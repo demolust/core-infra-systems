@@ -14,23 +14,28 @@ system_users:
   runner:
     name: "runner"
     shell: "/bin/bash"
-    groups: "{{ system_groups.gitops }}"
+    group: "{{ system_groups.runner }}"
+    groups: "{{ system_groups.gitops }},systemd-journal"
   unifi:
     name: "unifi"
     shell: "/usr/sbin/nologin"
-    groups: "{{ system_groups.unifi }}"
+    group: "{{ system_groups.unifi }}"
+    groups: "systemd-journal"
   navidrome:
     name: "navidrome"
     shell: "/usr/sbin/nologin"
-    groups: "{{ system_groups.share }}"
+    group: "{{ system_groups.navidrome }}"
+    groups: "{{ system_groups.share }},systemd-journal"
   vault:
     name: "vault"
-    shell: "/usr/bin/nologin"
-    groups: "{{ system_groups.vault }}"
+    shell: "/usr/sbin/nologin"
+    group: "{{ system_groups.vault }}"
+    groups: "systemd-journal"
   netbox:
     name: "netbox"
-    shell: "/usr/bin/nologin"
-    groups: "{{ system_groups.netbox }}"
+    shell: "/usr/sbin/nologin"
+    group: "{{ system_groups.netbox }}"
+    groups: "systemd-journal"
 
 data_basedir: "/data"
 samba_data_share_dir: "{{ data_basedir }}/share"
@@ -47,6 +52,7 @@ vault_base_dir: "{{ data_basedir }}/srv/vault"
 vault_paths:
   config: "{{ vault_base_dir }}/config"
   data: "{{ vault_base_dir }}/data"
+  env: "{{ vault_base_dir }}/env"
 
 gitops_base_dir: "{{ data_basedir }}/sys"
 ansible_cache_dir: "{{ gitops_base_dir }}/ansible"
@@ -112,6 +118,10 @@ data_directories:
     owner: "{{ system_users.vault.name }}"
     group: "{{ system_groups.vault }}"
     mode: '0755'
+  - path: "{{ vault_paths.env }}"
+    owner: "{{ system_users.vault.name }}"
+    group: "{{ system_groups.vault }}"
+    mode: '0755'
 
 # Gitops tooling
 gitops_tooling:
@@ -161,7 +171,7 @@ pxe_http_port: "80"
 pxe_interface: "{{ lookup('env', 'TARGET_PXE_INT') | default('enp0s31f6', true) }}"
 
 # UNIFI Controller data
-unifi_env_file: "{{ unifi_paths.env }}/unifi.env"
+unifi_env_file: "{{ unifi_paths.env }}/env"
 unifi_ports:
   - { host: 8443, container: 8443, proto: tcp }
   - { host: 8080, container: 8080, proto: tcp }
@@ -178,6 +188,9 @@ unifi_mongo_db_name: "{{ lookup('env', 'UNIFI_MONGO_DB_NAME') | default('', true
 # Vault data
 vault_ports: "8200"
 vault_init_file: "{{ vault_paths.config }}/vault.hcl"
+vault_internal_data: "/vault/data"
+vault_internal_config: "/openbao/config"
+vault_env_file: "{{ vault_paths.env }}/env"
 
 # Quadlets apps data
 quadlet_services:

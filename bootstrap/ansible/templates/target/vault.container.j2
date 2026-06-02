@@ -1,6 +1,6 @@
 # Vault Podman Quadlet config - Managed by Ansible/Jinja2
 [Unit]
-Description=OpenBao Standalone Service
+Description=Vault Standalone Service
 After=network-online.target
 
 [Container]
@@ -9,9 +9,9 @@ Exec=server
 PublishPort={{ vault_ports }}:8200
 # openbao user (ID 100 GID 1000)
 User=100:1000
-Volume={{ vault_paths.config }}:/openbao/config:Z,U
-Volume={{ vault_paths.data }}:/openbao/data:Z,U
-Environment=BAO_ADDR=http://127.0.0.1:8200
+Volume={{ vault_paths.config }}:{{ vault_internal_config }}:Z,U
+Volume={{ vault_paths.data }}:{{ vault_internal_data }}:Z,U
+EnvironmentFile={{ vault_env_file }}
 
 [Install]
 WantedBy=multi-user.target default.target

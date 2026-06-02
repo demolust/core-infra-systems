@@ -291,7 +291,7 @@
     create_home: true
     system: true
     shell: "{{ item.value.shell | default('/usr/sbin/nologin') }}"
-    group: "{{ item.value.name }}"
+    group: "{{ item.value.group | default(item.value.name) }}"
     groups: "{{ item.value.groups | default(omit) }}"
     append: true
     state: present
@@ -358,6 +358,7 @@
     group: "{{ system_groups.vault }}"
     mode: '0644'
   loop:
+    - { name: "vault.env.j2", dest: "{{ vault_env_file }}" }
     - { name: "vault.hcl.j2", dest: "{{ vault_init_file }}" }
 
 - name: Create directories for Samba shares
@@ -418,6 +419,7 @@
     persistent: true
   loop:
     # Containers read & interact public shared content
+    - container_manage_public_content
     - container_read_public_content
     - container_manage_cgroup
     - virt_use_samba
