@@ -101,6 +101,15 @@
     state: enabled
     immediate: true
   loop: "{{ unifi_ports }}"
+  when: ansible_os_family == "RedHat"
+
+- name: Allow Vault ports via firewalld
+  ansible.posix.firewalld:
+    port: "{{ vault_ports }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: true
+  when: ansible_os_family == "RedHat"
 
 - name: Allow PXE ports via firewalld
   ansible.posix.firewalld:

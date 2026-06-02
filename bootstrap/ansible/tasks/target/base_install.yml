@@ -291,6 +291,7 @@
     create_home: true
     system: true
     shell: "{{ item.value.shell | default('/usr/sbin/nologin') }}"
+    group: "{{ item.value.name }}"
     groups: "{{ item.value.groups | default(omit) }}"
     append: true
     state: present
@@ -348,6 +349,16 @@
   loop:
     - { name: "unifi.env.j2", dest: "{{ unifi_env_file }}" }
     - { name: "init-mongo.js.j2", dest: "{{ unifi_paths.init }}/init-mongo.js" }
+
+- name: Deploy Vault init files
+  ansible.builtin.template:
+    src: target/{{ item.name }}
+    dest: "{{ item.dest }}"
+    owner: "{{ system_users.vault.name }}"
+    group: "{{ system_groups.vault }}"
+    mode: '0644'
+  loop:
+    - { name: "vault.hcl.j2", dest: "{{ vault_init_file }}" }
 
 - name: Create directories for Samba shares
   ansible.builtin.file:

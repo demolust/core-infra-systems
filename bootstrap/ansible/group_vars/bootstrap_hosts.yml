@@ -6,6 +6,10 @@ system_groups:
   share: "share"
   gitops: "gitops"
   unifi: "unifi"
+  navidrome: "navidrome"
+  runner: "runner"
+  vault: "vault"
+  netbox: "netbox"
 system_users:
   runner:
     name: "runner"
@@ -19,6 +23,14 @@ system_users:
     name: "navidrome"
     shell: "/usr/sbin/nologin"
     groups: "{{ system_groups.share }}"
+  vault:
+    name: "vault"
+    shell: "/usr/bin/nologin"
+    groups: "{{ system_groups.vault }}"
+  netbox:
+    name: "netbox"
+    shell: "/usr/bin/nologin"
+    groups: "{{ system_groups.netbox }}"
 
 data_basedir: "/data"
 samba_data_share_dir: "{{ data_basedir }}/share"
@@ -31,6 +43,10 @@ unifi_paths:
   db: "{{ unifi_base_dir }}/db"
   config: "{{ unifi_base_dir }}/config"
   env: "{{ unifi_base_dir }}/env"
+vault_base_dir: "{{ data_basedir }}/srv/vault"
+vault_paths:
+  config: "{{ vault_base_dir }}/config"
+  data: "{{ vault_base_dir }}/data"
 
 gitops_base_dir: "{{ data_basedir }}/sys"
 ansible_cache_dir: "{{ gitops_base_dir }}/ansible"
@@ -87,6 +103,15 @@ data_directories:
     owner: "root"
     group: "wheel"
     mode: '2775'
+  # Vault
+  - path: "{{ vault_paths.config }}"
+    owner: "{{ system_users.vault.name }}"
+    group: "{{ system_groups.vault }}"
+    mode: '0755'
+  - path: "{{ vault_paths.data }}"
+    owner: "{{ system_users.vault.name }}"
+    group: "{{ system_groups.vault }}"
+    mode: '0755'
 
 # Gitops tooling
 gitops_tooling:
@@ -150,6 +175,10 @@ unifi_mongo_user: "{{ lookup('env', 'UNIFI_MONGO_USER') | default('', true) }}"
 unifi_mongo_pass: "{{ lookup('env', 'UNIFI_MONGO_PASS') | default('', true) }}"
 unifi_mongo_db_name: "{{ lookup('env', 'UNIFI_MONGO_DB_NAME') | default('', true) }}"
 
+# Vault data
+vault_ports: "8200"
+vault_init_file: "{{ vault_paths.config }}/vault.hcl"
+
 # Quadlets apps data
 quadlet_services:
   - name: navidrome
@@ -166,3 +195,9 @@ quadlet_services:
       - { src: "unifi-controller.pod.j2", dest: "unifi-controller.pod" }
       - { src: "unifi-db.container.j2", dest: "unifi-db.container" }
       - { src: "unifi-application.container.j2", dest: "unifi-application.container" }
+  - name: "vault"
+    user: "{{ system_users.vault.name }}"
+    group: "{{ system_groups.vault }}"
+    service: "vault"
+    templates:
+      - { src: "vault.container.j2", dest: "vault.container" }
