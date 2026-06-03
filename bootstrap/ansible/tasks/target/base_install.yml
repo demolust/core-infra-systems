@@ -339,27 +339,22 @@
     mode: '0755'
   loop: "{{ unifi_paths | dict2items }}"
 
-- name: Deploy UNIFI controller init files
+- name: Deploy application initialization files
   ansible.builtin.template:
-    src: target/{{ item.name }}
+    src: "target/{{ item.name }}"
     dest: "{{ item.dest }}"
-    owner: "{{ system_users.unifi.name }}"
-    group: "{{ system_groups.unifi }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
     mode: '0644'
   loop:
-    - { name: "unifi.env.j2", dest: "{{ unifi_env_file }}" }
-    - { name: "init-mongo.js.j2", dest: "{{ unifi_paths.init }}/init-mongo.js" }
-
-- name: Deploy Vault init files
-  ansible.builtin.template:
-    src: target/{{ item.name }}
-    dest: "{{ item.dest }}"
-    owner: "{{ system_users.vault.name }}"
-    group: "{{ system_groups.vault }}"
-    mode: '0644'
-  loop:
-    - { name: "vault.env.j2", dest: "{{ vault_env_file }}" }
-    - { name: "vault.hcl.j2", dest: "{{ vault_init_file }}" }
+    # UniFi
+    - { name: "unifi.env.j2", dest: "{{ unifi_env_file }}", owner: "{{ system_users.unifi.name }}", group: "{{ system_groups.unifi }}" }
+    - { name: "init-mongo.js.j2", dest: "{{ unifi_paths.init }}/init-mongo.js", owner: "{{ system_users.unifi.name }}", group: "{{ system_groups.unifi }}" }
+    # Vault
+    - { name: "vault.env.j2", dest: "{{ vault_env_file }}", owner: "{{ system_users.vault.name }}", group: "{{ system_groups.vault }}" }
+    - { name: "vault.hcl.j2", dest: "{{ vault_init_file }}", owner: "{{ system_users.vault.name }}", group: "{{ system_groups.vault }}" }
+    # NetBox
+    - { name: "netbox.env.j2", dest: "{{ netbox_env_file }}", owner: "{{ system_users.netbox.name }}", group: "{{ system_groups.netbox }}" }
 
 - name: Create directories for Samba shares
   ansible.builtin.file:
@@ -367,7 +362,7 @@
     state: directory
     owner: root
     group: "{{ system_groups.share }}"
-    # Need `other` (e.g. Podman containers) to have execute
+    # Need `other` (e.g. Podman containers) to have r-x permissions
     mode: '2775'
   loop: "{{ samba_custom_shares }}"
 

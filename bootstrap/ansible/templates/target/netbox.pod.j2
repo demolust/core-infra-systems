@@ -1,0 +1,11 @@
+# NetBox Pod Podman Quadlet config - Managed by Ansible/Jinja2
+[Unit]
+Description=NetBox Application Pod
+After=network-online.target
+
+[Pod]
+PodName=netbox-pod
+PublishPort={{ netbox_port }}:8080
+
+[Install]
+WantedBy=default.target

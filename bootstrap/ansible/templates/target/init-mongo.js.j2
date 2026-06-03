@@ -1,9 +1,10 @@
+// Unifi init DB config file - Managed by Ansible/Jinja2
 // Switch to the 'unifi' database to create the user
-db = db.getSiblingDB("{{ unifi_mongo_db_name }}");
+db = db.getSiblingDB("unifi");
 
 // Create the user with roles for ALL required UniFi databases
 db.createUser({
-  user: "{{ unifi_mongo_user }}",
+  user: "unifi",
   pwd: "{{ unifi_mongo_pass }}",
   roles: [
     { role: "dbOwner", db: "unifi" },

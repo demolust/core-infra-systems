@@ -1,0 +1,19 @@
+# NetBox Worker Podman Quadlet config - Managed by Ansible/Jinja2
+[Unit]
+Description=NetBox Asynchronous GitOps Worker
+#Requires=netbox-db.service netbox-redis.service netbox-app.service
+After=netbox-db.service netbox-redis.service netbox-app.service
+
+[Container]
+ContainerName=netbox-worker
+Image=docker.io/netboxcommunity/netbox:v4.0
+EnvironmentFile={{ netbox_env_file }}
+Volume={{ netbox_paths.data }}:/opt/netbox/netbox/media:Z
+Exec=/opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py rqworker
+#Exec=bash -c "until /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py check; do echo 'Waiting for database schema to settle...'; sleep 5; done; exec /opt/netbox/venv/bin/python /opt/netbox/netbox/manage.py rqworker"
+Pod=netbox.pod
+
+[Service]
+Restart=on-failure
+StartLimitIntervalSec=30
+StartLimitBurst=5

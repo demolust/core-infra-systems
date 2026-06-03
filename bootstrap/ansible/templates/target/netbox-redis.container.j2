@@ -1,0 +1,13 @@
+# NetBox Cache Podman Quadlet config - Managed by Ansible/Jinja2
+[Unit]
+Description=NetBox Redis Cache
+
+[Container]
+ContainerName=netbox-redis
+Image=docker.io/library/redis:7-alpine
+Pod=netbox.pod
+
+[Service]
+Restart=on-failure
+StartLimitIntervalSec=30
+StartLimitBurst=5

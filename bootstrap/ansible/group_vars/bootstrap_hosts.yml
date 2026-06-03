@@ -53,6 +53,11 @@ vault_paths:
   config: "{{ vault_base_dir }}/config"
   data: "{{ vault_base_dir }}/data"
   env: "{{ vault_base_dir }}/env"
+netbox_base_dir: "{{ data_basedir }}/srv/netbox"
+netbox_paths:
+  data: "{{ netbox_base_dir }}/data"
+  db: "{{ netbox_base_dir }}/db"
+  env: "{{ netbox_base_dir }}/env"
 
 gitops_base_dir: "{{ data_basedir }}/sys"
 ansible_cache_dir: "{{ gitops_base_dir }}/ansible"
@@ -122,6 +127,19 @@ data_directories:
     owner: "{{ system_users.vault.name }}"
     group: "{{ system_groups.vault }}"
     mode: '0755'
+  # NetBox
+  - path: "{{ netbox_paths.data }}"
+    owner: "{{ system_users.netbox.name }}"
+    group: "{{ system_groups.netbox }}"
+    mode: '0755'
+  - path: "{{ netbox_paths.db }}"
+    owner: "{{ system_users.netbox.name }}"
+    group: "{{ system_groups.netbox }}"
+    mode: '0755'
+  - path: "{{ netbox_paths.env }}"
+    owner: "{{ system_users.netbox.name }}"
+    group: "{{ system_groups.netbox }}"
+    mode: '0755'
 
 # Gitops tooling
 gitops_tooling:
@@ -143,8 +161,8 @@ samba_users_path: "/home"
 samba_spool_path: "/var/spool/samba"
 samba_users:
   - { name: "{{ admin_username }}", password: "{{ admin_samba_password }}" }
-  # - { name: "{{ admin_username }}", password: "{{ vault_admin_samba_hashed_pass }}" }
-  # - { name: "{{ admin_username }}", password: "{{ vault_admin_samba_pass }}" }
+  # - { name: "{{ admin_username }}", password: "{{ vaulted_admin_samba_hashed_pass }}" }
+  # - { name: "{{ admin_username }}", password: "{{ vaulted_admin_samba_pass }}" }
 samba_custom_shares:
   - name: "data"
     comment: "Restricted Data Share (Linux-style case sensitivity | Permissions: 664/775) For {{ admin_username }} and @{{ system_groups.share }}"
@@ -177,13 +195,8 @@ unifi_ports:
   - { host: 8080, container: 8080, proto: tcp }
   - { host: 3478, container: 3478, proto: udp }
   - { host: 10001, container: 10001, proto: udp }
-unifi_mongo_host: "{{ lookup('env', 'UNIFI_MONGO_HOST') | default('', true) }}"
-unifi_mongo_port: "{{ lookup('env', 'UNIFI_MONGO_PORT') | default('', true) }}"
-unifi_mongo_root_user: "{{ lookup('env', 'UNIFI_MONGO_ROOT_USER') | default('', true) }}"
 unifi_mongo_root_pass: "{{ lookup('env', 'UNIFI_MONGO_ROOT_PASS') | default('', true) }}"
-unifi_mongo_user: "{{ lookup('env', 'UNIFI_MONGO_USER') | default('', true) }}"
 unifi_mongo_pass: "{{ lookup('env', 'UNIFI_MONGO_PASS') | default('', true) }}"
-unifi_mongo_db_name: "{{ lookup('env', 'UNIFI_MONGO_DB_NAME') | default('', true) }}"
 
 # Vault data
 vault_ports: "8200"
@@ -191,6 +204,16 @@ vault_init_file: "{{ vault_paths.config }}/vault.hcl"
 vault_internal_data: "/vault/data"
 vault_internal_config: "/openbao/config"
 vault_env_file: "{{ vault_paths.env }}/env"
+
+# NetBox data
+netbox_port: "9090"
+netbox_env_file: "{{ netbox_paths.env }}/env"
+netbox_postgres_pass: "{{ lookup('env', 'NETBOX_POSTGRES_PASS') | default('', true) }}"
+netbox_secret_key: "{{ lookup('env', 'NETBOX_SECRET_KEY') | default('', true) }}"
+netbox_allowed_hosts: "{{ lookup('env', 'NETBOX_ALLOWED_HOSTS') | default('*', true) }}"
+netbox_superuser_name: "{{ lookup('env', 'NETBOX_SUPERUSER_NAME') | default('admin', true) }}"
+netbox_superuser_email: "{{ lookup('env', 'NETBOX_SUPERUSER_EMAIL') | default('', true) }}"
+netbox_superuser_pass: "{{ lookup('env', 'NETBOX_SUPERUSER_PASS') | default('', true) }}"
 
 # Quadlets apps data
 quadlet_services:
@@ -214,3 +237,13 @@ quadlet_services:
     service: "vault"
     templates:
       - { src: "vault.container.j2", dest: "vault.container" }
+  - name: "netbox"
+    user: "{{ system_users.netbox.name }}"
+    group: "{{ system_groups.netbox }}"
+    service: "netbox-pod"
+    templates:
+      - { src: "netbox.pod.j2", dest: "netbox.pod" }
+      - { src: "netbox-db.container.j2", dest: "netbox-db.container" }
+      - { src: "netbox-app.container.j2", dest: "netbox-app.container" }
+      - { src: "netbox-redis.container.j2", dest: "netbox-redis.container" }
+      - { src: "netbox-worker.container.j2", dest: "netbox-worker.container" }

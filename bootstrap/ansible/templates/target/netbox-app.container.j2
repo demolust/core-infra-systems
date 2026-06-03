@@ -1,0 +1,17 @@
+# NetBox App Podman Quadlet config - Managed by Ansible/Jinja2
+[Unit]
+Description=NetBox Application Engine
+#Requires=netbox-db.service netbox-redis.service
+After=netbox-db.service netbox-redis.service
+
+[Container]
+ContainerName=netbox-app
+Image=docker.io/netboxcommunity/netbox:v4.0
+EnvironmentFile={{ netbox_env_file }}
+Volume={{ netbox_paths.data }}:/opt/netbox/netbox/media:Z
+Pod=netbox.pod
+
+[Service]
+Restart=on-failure
+StartLimitIntervalSec=30
+StartLimitBurst=5

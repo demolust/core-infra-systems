@@ -86,13 +86,17 @@
     state: started
     enabled: true
 
-- name: Allow Navidrome port via firewalld
+- name: Allow application ports via firewalld
   ansible.posix.firewalld:
-    port: "{{ navidrome_port }}/tcp"
+    port: "{{ item }}"
     permanent: true
     state: enabled
     immediate: true
   when: ansible_os_family == "RedHat"
+  loop:
+    - "{{ navidrome_port }}/tcp"
+    - "{{ vault_ports }}/tcp"
+    - "{{ netbox_port }}/tcp"
 
 - name: Allow Unifi Controller ports via firewalld
   ansible.posix.firewalld:
@@ -101,14 +105,6 @@
     state: enabled
     immediate: true
   loop: "{{ unifi_ports }}"
-  when: ansible_os_family == "RedHat"
-
-- name: Allow Vault ports via firewalld
-  ansible.posix.firewalld:
-    port: "{{ vault_ports }}/tcp"
-    permanent: true
-    state: enabled
-    immediate: true
   when: ansible_os_family == "RedHat"
 
 - name: Allow PXE ports via firewalld
