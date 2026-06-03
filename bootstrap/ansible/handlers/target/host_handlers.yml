@@ -1,8 +1,4 @@
 ---
-- name: Run restorecon
-  command: "restorecon -Rv {{ item.path }}"
-  loop: "{{ samba_custom_shares }}"
-
 - name: Restart sshd
   ansible.builtin.service:
     name: sshd

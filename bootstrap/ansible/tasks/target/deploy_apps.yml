@@ -25,7 +25,7 @@
     scope: user
   when: app_deployment.changed
 
-- name: "Enable podman-auto-update timer"
+- name: Enable podman-auto-update timer
   become_user: "{{ app.user }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.getent_passwd[app.user][1] }}"

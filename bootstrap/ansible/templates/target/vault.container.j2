@@ -6,7 +6,7 @@ After=network-online.target
 [Container]
 Image=quay.io/openbao/openbao:latest
 Exec=server
-PublishPort={{ vault_ports }}:8200
+PublishPort={{ vault_port }}:8200
 # openbao user (ID 100 GID 1000)
 User=100:1000
 Volume={{ vault_paths.config }}:{{ vault_internal_config }}:Z,U

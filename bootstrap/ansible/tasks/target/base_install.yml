@@ -312,32 +312,17 @@
     creates: "/var/lib/systemd/linger/{{ item.value.name }}"
   loop: "{{ system_users | dict2items }}"
 
-- name: "Ensure base data directory exists"
+- name: Create specific directory tree with permissions and SELinux
   ansible.builtin.file:
-    path: "{{ data_basedir }}"
+    path: "{{ item.1 }}"
     state: directory
-    owner: root
-    group: root
-    mode: '0755'
-
-- name: "Create specific directory tree with permissions and setgid"
-  ansible.builtin.file:
-    path: "{{ item.path }}"
-    state: directory
-    owner: "{{ item.owner }}"
-    group: "{{ item.group }}"
-    mode: "{{ item.mode }}"
-    setype: "{{ item.value.setype | default(omit) }}"
-  loop: "{{ data_directories }}"
-
-- name: Ensure all Unifi config directories exist
-  ansible.builtin.file:
-    path: "{{ item.value }}"
-    state: directory
-    owner: "{{ system_users.unifi.name }}"
-    group: "{{ system_groups.unifi }}"
-    mode: '0755'
-  loop: "{{ unifi_paths | dict2items }}"
+    owner: "{{ item.0.owner }}"
+    group: "{{ item.0.group }}"
+    mode: "{{ item.0.mode }}"
+    setype: "{{ item.0.setype | default(omit) }}"
+  with_subelements:
+    - "{{ data_directories }}"
+    - paths
 
 - name: Deploy application initialization files
   ansible.builtin.template:
@@ -355,16 +340,6 @@
     - { name: "vault.hcl.j2", dest: "{{ vault_init_file }}", owner: "{{ system_users.vault.name }}", group: "{{ system_groups.vault }}" }
     # NetBox
     - { name: "netbox.env.j2", dest: "{{ netbox_env_file }}", owner: "{{ system_users.netbox.name }}", group: "{{ system_groups.netbox }}" }
-
-- name: Create directories for Samba shares
-  ansible.builtin.file:
-    path: "{{ item.path }}"
-    state: directory
-    owner: root
-    group: "{{ system_groups.share }}"
-    # Need `other` (e.g. Podman containers) to have r-x permissions
-    mode: '2775'
-  loop: "{{ samba_custom_shares }}"
 
 - name: Ensure subuid/subgid ranges for system users
   ansible.builtin.lineinfile:
@@ -384,14 +359,6 @@
     group: root
     mode: '0644'
 
-- name: Ensure Navidrome Music directory exists
-  ansible.builtin.file:
-    path: "{{ navidrome_music_dir }}"
-    owner: "{{ admin_username }}"
-    group: "{{ system_groups.share }}"
-    state: directory
-    mode: '2775'
-
 - name: Ensure public_content_rw_t context is defined for data_basedir and its contents
   community.general.sefcontext:
     target: "{{ item }}"
@@ -402,8 +369,8 @@
     - "{{ data_basedir }}(/.*)?"
   register: selinux_context_changed
 
-- name: Apply new SELinux context to files on disk (restorecon)
-  ansible.builtin.command: "restorecon -R -v {{ data_basedir }}"
+- name: Apply new SELinux context to files on disk
+  ansible.builtin.command: "restorecon -Rv {{ data_basedir }}"
   when: selinux_context_changed.changed
   changed_when: true
 

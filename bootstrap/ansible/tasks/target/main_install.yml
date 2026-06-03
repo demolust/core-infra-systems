@@ -25,14 +25,6 @@
     update_cache: true
   when: ansible_os_family == "RedHat"
 
-- name: Allow Samba service via firewalld
-  ansible.posix.firewalld:
-    service: samba
-    permanent: true
-    state: enabled
-    immediate: true
-  when: ansible_os_family == "RedHat"
-
 - name: Generate smb configuration from template
   ansible.builtin.template:
     src: target/smb.conf.j2
@@ -55,21 +47,6 @@
   register: smb_result
   changed_when: "'Added user' in smb_result.stdout"
 
-- name: Apply SELinux file context for Samba shares
-  community.general.sefcontext:
-    target: "{{ item.path }}(/.*)?"
-    #setype: samba_share_t
-    setype: public_content_rw_t
-    state: present
-  loop: "{{ samba_custom_shares }}"
-  register: selinux_context
-  notify: Run restorecon
-  when: ansible_os_family == "RedHat"
-
-- name: Run restorecon
-  ansible.builtin.command: "restorecon -Rv {{ item.path }}"
-  loop: "{{ samba_custom_shares }}"
-
 - name: Start and enable Samba services
   ansible.builtin.systemd:
     name: "{{ item }}"
@@ -86,6 +63,14 @@
     state: started
     enabled: true
 
+- name: Allow Samba service via firewalld
+  ansible.posix.firewalld:
+    service: samba
+    permanent: true
+    state: enabled
+    immediate: true
+  when: ansible_os_family == "RedHat"
+
 - name: Allow application ports via firewalld
   ansible.posix.firewalld:
     port: "{{ item }}"
@@ -95,7 +80,7 @@
   when: ansible_os_family == "RedHat"
   loop:
     - "{{ navidrome_port }}/tcp"
-    - "{{ vault_ports }}/tcp"
+    - "{{ vault_port }}/tcp"
     - "{{ netbox_port }}/tcp"
 
 - name: Allow Unifi Controller ports via firewalld
