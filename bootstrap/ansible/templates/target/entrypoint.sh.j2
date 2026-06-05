@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+echo "Syncing host users to container environment..."
+awk -F: '$3 >= 1000' /host-etc/passwd >> /etc/passwd
+awk -F: '$3 >= 1000' /host-etc/group >> /etc/group
+grep -E '^{{ system_groups.share }}:' /host-etc/group >> /etc/group || true
+echo "User sync complete. Starting Samba..."
+
+exec /usr/sbin/smbd --foreground --no-process-group --debug-stdout --configfile=/etc/samba/smb.conf

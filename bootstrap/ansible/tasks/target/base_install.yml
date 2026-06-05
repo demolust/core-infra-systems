@@ -359,7 +359,7 @@
     group: root
     mode: '0644'
 
-- name: Ensure public_content_rw_t context is defined for data_basedir and its contents
+- name: "Ensure public_content_rw_t context is defined for {{ data_basedir }} and its contents"
   community.general.sefcontext:
     target: "{{ item }}"
     setype: public_content_rw_t

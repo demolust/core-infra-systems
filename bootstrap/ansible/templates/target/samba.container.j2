@@ -1,0 +1,25 @@
+# Samba Podman Quadlet config - Managed by Ansible/Jinja2
+[Unit]
+Description=Samba File Server Container
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=docker.io/instantlinux/samba:latest
+RunInit=true
+Network=host
+Volume={{ samba_data_share_dir }}:{{ samba_internal_dir }}
+Volume={{ samba_priv_dir }}:/var/lib/samba/private:Z
+Volume={{ samba_conf_dir }}:/etc/samba/:Z,ro
+Volume={{ samba_conf_dir }}/entrypoint.sh:/usr/local/bin/entrypoint.sh:Z,ro
+Volume={{ samba_conf_dir }}/host-passwd:/host-etc/passwd:Z,ro
+Volume={{ samba_conf_dir }}/host-group:/host-etc/group:Z,ro
+Entrypoint=["/usr/local/bin/entrypoint.sh"]
+AutoUpdate=registry
+
+[Service]
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=default.target
