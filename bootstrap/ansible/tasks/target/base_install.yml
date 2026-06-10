@@ -324,6 +324,15 @@
     - "{{ data_directories }}"
     - paths
 
+- name: "Get {{ system_users.runner.name }} runner user details"
+  ansible.builtin.getent:
+    database: passwd
+    key: runner
+
+- name: "Set {{ system_users.runner.name }} home directory fact"
+  ansible.builtin.set_fact:
+    runner_home: "{{ getent_passwd[system_users.runner.name][4] }}"
+
 - name: Deploy application initialization files
   ansible.builtin.template:
     src: "target/{{ item.name }}"
@@ -340,6 +349,9 @@
     - { name: "vault.hcl.j2", dest: "{{ vault_init_file }}", owner: "{{ system_users.vault.name }}", group: "{{ system_groups.vault }}" }
     # NetBox
     - { name: "netbox.env.j2", dest: "{{ netbox_env_file }}", owner: "{{ system_users.netbox.name }}", group: "{{ system_groups.netbox }}" }
+    # Runner
+    - { name: "runner.env.j2", dest: "{{ runner_env_file }}", owner: "{{ system_users.runner.name }}", group: "{{ system_groups.runner }}" }
+    - { name: "runner_auth.json.j2", dest: "{{ runner_home }}/.config/containers/auth.json", owner: "{{ system_users.runner.name }}", group: "{{ system_groups.runner }}" }
 
 - name: Ensure subuid/subgid ranges for system users
   ansible.builtin.lineinfile:

@@ -140,7 +140,7 @@
     group: "wheel"
   loop:
     - { src: 'smb.conf.j2', dest: "{{ samba_conf_dir }}/smb.conf" }
-    - { src: 'entrypoint.sh.j2', dest: "{{ samba_conf_dir }}/entrypoint.sh", mode: "0775" }
+    - { src: 'samba_entrypoint.sh.j2', dest: "{{ samba_conf_dir }}/entrypoint.sh", mode: "0775" }
     - { src: 'dnsmasq.conf.j2', dest: "{{ pxe_base_dir }}/configs/dnsmasq.conf" }
     - { src: 'nginx.conf.j2',   dest: "{{ pxe_base_dir }}/configs/nginx.conf" }
     - { src: 'tftpd.map.j2',    dest: "{{ pxe_base_dir }}/configs/tftpd.map" }

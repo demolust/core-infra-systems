@@ -58,6 +58,9 @@ netbox_paths:
   data: "{{ netbox_base_dir }}/data"
   db: "{{ netbox_base_dir }}/db"
   env: "{{ netbox_base_dir }}/env"
+runner_base_dir: "{{ data_basedir }}/srv/runner"
+runner_env_dir: "{{ runner_base_dir }}/env"
+runner_env_file: "{{ runner_env_dir }}/env"
 gitops_base_dir: "{{ data_basedir }}/sys"
 ansible_cache_dir: "{{ gitops_base_dir }}/ansible"
 terraform_cache_dir: "{{ gitops_base_dir }}/terraform"
@@ -107,6 +110,14 @@ data_directories:
     owner: "root"
     group: "root"
     mode: '0755'
+
+    # Runner
+  - paths:
+      - "{{ runner_base_dir }}"
+      - "{{ runner_env_dir }}"
+    owner: "{{ system_users.runner.name }}"
+    group: "{{ system_groups.runner }}"
+    mode: '0775'
 
   # Navidrome
   - paths: ["{{ navidrome_data_dir }}"]
@@ -214,6 +225,14 @@ netbox_superuser_name: "{{ lookup('env', 'NETBOX_SUPERUSER_NAME') | default('adm
 netbox_superuser_email: "{{ lookup('env', 'NETBOX_SUPERUSER_EMAIL') | default('', true) }}"
 netbox_superuser_pass: "{{ lookup('env', 'NETBOX_SUPERUSER_PASS') | default('', true) }}"
 
+# Runner data
+ghcr_pull_pat: "{{ lookup('env', 'GHCR_PULL_PAT') | default('', true) }}"
+runner_image: "{{ lookup('env', 'RUNNER_IMAGE') | default('', true) }}"
+gh_runner_name: "{{ lookup('env', 'GH_RUNNER_NAME') | default('', true) }}"
+gh_runner_labels: "{{ lookup('env', 'GH_RUNNER_LABELS') | default('', true) }}"
+gh_url: "{{ lookup('env', 'GH_URL') | default('', true) }}"
+gh_pat: "{{ lookup('env', 'GH_PAT') | default('', true) }}"
+
 # Quadlets apps data
 quadlet_services:
   - name: navidrome
@@ -246,3 +265,9 @@ quadlet_services:
       - { src: "netbox-app.container.j2", dest: "netbox-app.container" }
       - { src: "netbox-redis.container.j2", dest: "netbox-redis.container" }
       - { src: "netbox-worker.container.j2", dest: "netbox-worker.container" }
+  - name: "runner"
+    user: "{{ system_users.runner.name }}"
+    group: "{{ system_groups.runner }}"
+    service: "runner"
+    templates:
+      - { src: "runner.container.j2", dest: "runner.container" }

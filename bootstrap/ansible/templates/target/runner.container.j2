@@ -1,0 +1,20 @@
+[Unit]
+Description=Clean Runner Container
+After=network-online.target
+
+[Container]
+Image={{ runner_image }}
+EnvironmentFile={{ runner_env_file }}
+AutoUpdate=registry
+Network=host
+LogDriver=journald
+GroupAdd=keep-groups
+Volume={{ ansible_cache_dir }}:/ansible_cache
+Volume={{ terraform_cache_dir }}:/terraform_cache
+
+[Service]
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=default.target
