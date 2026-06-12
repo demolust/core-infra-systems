@@ -15,21 +15,21 @@
     remote_netmask: "{{ network_info.stdout.split('/')[1] }}"
     remote_server_ip: "{{ ip_info.stdout.split('/')[0] }}"
 
-- name: Install Samba packages (Fedora/RedHat)
-  ansible.builtin.dnf:
-    name:
-      - samba
-      - samba-client
-      - samba-common
-    state: present
-    update_cache: true
-  when: ansible_os_family == "RedHat"
+#- name: Install Samba packages (Fedora/RedHat)
+#  ansible.builtin.dnf:
+#    name:
+#      - samba
+#      - samba-client
+#      - samba-common
+#    state: present
+#    update_cache: true
+#  when: ansible_os_family == "RedHat"
 
-- name: Generate smb configuration from template
-  ansible.builtin.template:
-    src: target/smb.conf.j2
-    dest: "/etc/samba/smb.conf"
-    mode: '0644'
+#- name: Generate smb configuration from template
+#  ansible.builtin.template:
+#    src: target/smb.conf.j2
+#    dest: "/etc/samba/smb.conf"
+#    mode: '0644'
 
 #- name: Inject NTLM hash for Samba user
 #  ansible.builtin.shell: |
@@ -39,23 +39,23 @@
 #  register: pdb_result
 #  changed_when: "'User added' in pdb_result.stdout"
 
-- name: Set Samba password
-  ansible.builtin.shell: |
-    (echo "{{ item.password }}"; echo "{{ item.password }}") | smbpasswd -s -a {{ item.name }}
-  loop: "{{ samba_users }}"
-  no_log: true
-  register: smb_result
-  changed_when: "'Added user' in smb_result.stdout"
+#- name: Set Samba password
+#  ansible.builtin.shell: |
+#    (echo "{{ item.password }}"; echo "{{ item.password }}") | smbpasswd -s -a {{ item.name }}
+#  loop: "{{ samba_users }}"
+#  no_log: true
+#  register: smb_result
+#  changed_when: "'Added user' in smb_result.stdout"
 
-- name: Start and enable Samba services
-  ansible.builtin.systemd:
-    name: "{{ item }}"
-    state: started
-    enabled: true
-  loop:
-    - smb
-    - nmb
-  when: ansible_os_family == "RedHat"
+#- name: Start and enable Samba services
+#  ansible.builtin.systemd:
+#    name: "{{ item }}"
+#    state: started
+#    enabled: true
+#  loop:
+#    - smb
+#    - nmb
+#  when: ansible_os_family == "RedHat"
 
 - name: Enable podman-auto-update timer
   ansible.builtin.systemd:
@@ -121,15 +121,15 @@
     - "www/x86_64/rescue"
     - "www/aarch64/rescue"
 
-#- name: Sync host identity files for Samba container
-#  ansible.builtin.copy:
-#    src: "{{ item.src }}"
-#    dest: "{{ item.dest }}"
-#    remote_src: true
-#    mode: '0644'
-#  loop:
-#    - { src: '/etc/passwd', dest: "{{ samba_conf_dir }}/host-passwd" }
-#    - { src: '/etc/group', dest: "{{ samba_conf_dir }}/host-group" }
+- name: Sync host identity files for Samba container
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    remote_src: true
+    mode: '0644'
+  loop:
+    - { src: '/etc/passwd', dest: "{{ samba_conf_dir }}/host-passwd" }
+    - { src: '/etc/group', dest: "{{ samba_conf_dir }}/host-group" }
 
 - name: Deploy root containers configuration files
   ansible.builtin.template:
@@ -139,8 +139,8 @@
     owner: "root"
     group: "wheel"
   loop:
-    #- { src: 'smb.conf.j2', dest: "{{ samba_conf_dir }}/smb.conf" }
-    #- { src: 'samba_entrypoint.sh.j2', dest: "{{ samba_conf_dir }}/entrypoint.sh", mode: "0775" }
+    - { src: 'smb.conf.j2', dest: "{{ samba_conf_dir }}/smb.conf" }
+    - { src: 'samba_entrypoint.sh.j2', dest: "{{ samba_conf_dir }}/entrypoint.sh", mode: "0775" }
     - { src: 'dnsmasq.conf.j2', dest: "{{ pxe_base_dir }}/configs/dnsmasq.conf" }
     - { src: 'nginx.conf.j2',   dest: "{{ pxe_base_dir }}/configs/nginx.conf" }
     - { src: 'tftpd.map.j2',    dest: "{{ pxe_base_dir }}/configs/tftpd.map" }
@@ -149,32 +149,32 @@
     - { src: 'boot.ipxe.j2',    dest: "{{ pxe_base_dir }}/www/ipxe/configs/boot.ipxe" }
   register: config_results
 
-#- name: Pre-stage Samba user database using matching container version
-#  containers.podman.podman_container:
-#    name: samba_db_generator
-#    image: docker.io/instantlinux/samba:latest
-#    rm: true
-#    state: started
-#    detach: false
-#    entrypoint: "/bin/sh"
-#    command:
-#      - "-c"
-#      - |
-#        awk -F: '$3 >= 1000' /host-etc/passwd >> /etc/passwd
-#        awk -F: '$3 >= 1000' /host-etc/group >> /etc/group
-#        grep -E '^{{ system_groups.share | quote }}:' /host-etc/group >> /etc/group || true
-#        printf "[global]\npassdb backend = tdbsam:/private/passdb.tdb\n" > /tmp/bootstrap.conf
-#        if ! pdbedit -b tdbsam:/private/passdb.tdb -u {{ item.name | quote }} > /dev/null 2>&1; then
-#          (echo {{ item.password | quote }}; echo {{ item.password | quote }}) | smbpasswd -c /tmp/bootstrap.conf -s -a {{ item.name | quote }}
-#        else
-#          (echo {{ item.password | quote }}; echo {{ item.password | quote }}) | smbpasswd -c /tmp/bootstrap.conf -s {{ item.name | quote }}
-#        fi
-#    volumes:
-#      - "{{ samba_priv_dir }}:/private:Z"
-#      - "{{ samba_conf_dir }}/host-passwd:/host-etc/passwd:Z,ro"
-#      - "{{ samba_conf_dir }}/host-group:/host-etc/group:Z,ro"
-#  loop: "{{ samba_users }}"
-#  no_log: true
+- name: Pre-stage Samba user database using matching container version
+  containers.podman.podman_container:
+    name: samba_db_generator
+    image: docker.io/instantlinux/samba:latest
+    rm: true
+    state: started
+    detach: false
+    entrypoint: "/bin/sh"
+    command:
+      - "-c"
+      - |
+        awk -F: '$3 >= 1000' /host-etc/passwd >> /etc/passwd
+        awk -F: '$3 >= 1000' /host-etc/group >> /etc/group
+        grep -E '^{{ system_groups.share | quote }}:' /host-etc/group >> /etc/group || true
+        printf "[global]\npassdb backend = tdbsam:/private/passdb.tdb\n" > /tmp/bootstrap.conf
+        if ! pdbedit -b tdbsam:/private/passdb.tdb -u {{ item.name | quote }} > /dev/null 2>&1; then
+          (echo {{ item.password | quote }}; echo {{ item.password | quote }}) | smbpasswd -c /tmp/bootstrap.conf -s -a {{ item.name | quote }}
+        else
+          (echo {{ item.password | quote }}; echo {{ item.password | quote }}) | smbpasswd -c /tmp/bootstrap.conf -s {{ item.name | quote }}
+        fi
+    volumes:
+      - "{{ samba_priv_dir }}:/private:Z"
+      - "{{ samba_conf_dir }}/host-passwd:/host-etc/passwd:Z,ro"
+      - "{{ samba_conf_dir }}/host-group:/host-etc/group:Z,ro"
+  loop: "{{ samba_users }}"
+  no_log: true
 
 - name: Download the latest iPXE files mapped to local architecture names
   ansible.builtin.get_url:
@@ -197,7 +197,7 @@
     src: "target/{{ item.src }}"
     dest: "/etc/containers/systemd/{{ item.dest }}"
   loop:
-    #- { src: 'samba.container.j2', dest: 'samba.container' }
+    - { src: 'samba.container.j2', dest: 'samba.container' }
     - { src: 'pxe.pod.j2', dest: 'pxe.pod' }
     - { src: 'pxe_dnsmasq.container.j2', dest: 'pxe_dnsmasq.container' }
     - { src: 'pxe_tftp.container.j2', dest: 'pxe_tftp.container' }
@@ -216,5 +216,5 @@
     enabled: true
   loop:
     - pxe-pod.service
-    #- samba.service
+    - samba.service
   when: quadlet_results.changed or config_results.changed

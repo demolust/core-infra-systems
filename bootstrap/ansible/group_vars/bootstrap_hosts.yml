@@ -177,7 +177,7 @@ samba_users:
 samba_custom_shares:
   - name: "data"
     comment: "Restricted Data Share (Linux-style case sensitivity | Permissions: 664/775) For {{ admin_username }} and @{{ system_groups.share }}"
-    path: "{{ samba_data_share_dir }}/general"
+    path: "{{ samba_internal_dir }}/general"
     write_list: "{{ admin_username }} @{{ system_groups.share }}"
     force_group: "{{ system_groups.share }}"
     guest_ok: "No"
