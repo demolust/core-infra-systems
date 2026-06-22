@@ -30,7 +30,7 @@ system_users:
     name: "vault"
     shell: "/usr/sbin/nologin"
     group: "{{ system_groups.vault }}"
-    groups: "systemd-journal"
+    groups: "systemd-journal,tss"
   netbox:
     name: "netbox"
     shell: "/usr/sbin/nologin"

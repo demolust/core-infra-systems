@@ -9,6 +9,8 @@ Exec=server
 PublishPort={{ vault_port }}:8200
 # openbao user (ID 100 GID 1000)
 User=100:1000
+AddDevice=/dev/tpmrm0:/dev/tpmrm0:rw
+GroupAdd=keep-groups
 Volume={{ vault_paths.config }}:{{ vault_internal_config }}:Z,U
 Volume={{ vault_paths.data }}:{{ vault_internal_data }}:Z,U
 EnvironmentFile={{ vault_env_file }}

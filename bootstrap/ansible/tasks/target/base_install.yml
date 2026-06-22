@@ -396,6 +396,7 @@
     - container_manage_public_content
     - container_read_public_content
     - container_manage_cgroup
+    - container_use_devices
     - virt_use_samba
     # Samba read/write public_content_rw_t shares
     - smbd_anon_write
