@@ -214,6 +214,7 @@ vault_init_file: "{{ vault_paths.config }}/vault.hcl"
 vault_internal_data: "/vault/data"
 vault_internal_config: "/openbao/config"
 vault_env_file: "{{ vault_paths.env }}/env"
+vault_unseal_key: "{{ lookup('env', 'VAULT_UNSEAL_KEY') | default('', true) }}"
 
 # NetBox data
 netbox_port: "9090"

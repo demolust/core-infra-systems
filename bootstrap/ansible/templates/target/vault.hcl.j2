@@ -12,5 +12,10 @@ listener "tcp" {
   tls_disable = "true"
 }
 
+seal "static" {
+  current_key_id = "unseal-static-1"
+  current_key    = "env://VAULT_UNSEAL_KEY"
+}
+
 disable_mlock = true
 ui = true
