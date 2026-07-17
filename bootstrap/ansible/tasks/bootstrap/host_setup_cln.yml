@@ -46,7 +46,6 @@
   ansible.posix.firewalld:
     masquerade: false
     state: disabled
-    permanent: true
     immediate: true
   when: ansible_os_family == "RedHat"
 

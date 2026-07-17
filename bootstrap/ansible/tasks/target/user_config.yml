@@ -28,13 +28,12 @@
   loop:
     - { src: '.config/', dest: '.config/' }
     - { src: '.local/',  dest: '.local/' }
-    - { src: '.zshrc',    dest: '.zshrc' }
     - { src: '.zshenv',    dest: '.zshenv' }
 
 - name: Trigger Zsh setup
   ansible.builtin.shell: |
     source ~/.zshenv
-    source ~/.zshrc
+    source "$ZDOTDIR/.zshrc"
     # Produce some output after first run
     echo 'Zsh Setup Done'
   args:
@@ -54,7 +53,7 @@
 - name: Run rustup.sh with non-interactive flag
   ansible.builtin.shell: |
     source ~/.zshenv
-    source ~/.zshrc
+    source "$ZDOTDIR/.zshrc"
     /tmp/rustup.sh -y
   args:
     executable: /bin/zsh
@@ -63,7 +62,7 @@
 - name: Update rust to the latest version
   ansible.builtin.shell: |
     source ~/.zshenv
-    source ~/.zshrc
+    source "$ZDOTDIR/.zshrc"
     rustup default stable
     rustup update
   args:
@@ -82,7 +81,7 @@
 - name: Install latest go
   ansible.builtin.shell: |
     source ~/.zshenv
-    source ~/.zshrc
+    source "$ZDOTDIR/.zshrc"
     {{ admin_home_dir }}/dotfiles/scripts/install_go.sh
   args:
     executable: /bin/zsh
@@ -91,7 +90,7 @@
 - name: Trigger install tools script
   ansible.builtin.shell: |
     source ~/.zshenv
-    source ~/.zshrc
+    source "$ZDOTDIR/.zshrc"
     # Comment for debugging as it can hit github api rate limit
     script-update-local-packages
     # Produce some output
@@ -125,7 +124,7 @@
 - name: Install uv tools
   ansible.builtin.shell: |
     source ~/.zshenv
-    source ~/.zshrc
+    source "$ZDOTDIR/.zshrc"
     tools=("${(@f)$(< {{ admin_home_dir }}/dotfiles/other_configs/uv_tools.txt)}")
     for tool in "${tools[@]}"; do
       [[ -z "$tool" ]] && continue
@@ -146,7 +145,7 @@
 - name: Install tmux tpm
   ansible.builtin.shell: |
     source ~/.zshenv
-    source ~/.zshrc
+    source "$ZDOTDIR/.zshrc"
     {{ admin_home_dir }}/dotfiles/scripts/install_tmux_tpm.sh
   args:
     executable: /bin/zsh
@@ -155,7 +154,7 @@
 - name: Install unoserver
   ansible.builtin.shell: |
     source ~/.zshenv
-    source ~/.zshrc
+    source "$ZDOTDIR/.zshrc"
     {{ admin_home_dir }}/dotfiles/scripts/install_unoserver.sh
   args:
     executable: /bin/zsh
@@ -164,7 +163,7 @@
 - name: Install tree-sitter-cli via Cargo
   ansible.builtin.shell: |
     source ~/.zshenv
-    source ~/.zshrc
+    source "$ZDOTDIR/.zshrc"
     cargo install tree-sitter-cli --locked
   args:
     executable: /bin/zsh
