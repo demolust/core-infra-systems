@@ -1,0 +1,14 @@
+---
+- name: Rebuild initramfs
+  ansible.builtin.command: dracut -f
+
+- name: Reboot server
+  ansible.builtin.reboot:
+    msg: "Ansible is rebooting the server to apply network module changes"
+    connect_timeout: 5
+    reboot_timeout: 600
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+
+- name: Reload NetworkManager
+  ansible.builtin.command: nmcli connection reload

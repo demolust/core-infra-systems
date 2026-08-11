@@ -1,0 +1,16 @@
+[connection]
+id={{ item.name }}
+type=vlan
+interface-name=lan0.{{ item.id }}
+
+[vlan]
+flags=1
+id={{ item.id }}
+parent=lan0
+
+[ipv4]
+address1={{ item.ipv4 }}
+method=manual
+
+[ipv6]
+method=disabled

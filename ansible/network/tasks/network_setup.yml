@@ -1,0 +1,93 @@
+---
+- name: Import ELRepo RPM GPG key from a URL
+  ansible.builtin.rpm_key:
+    state: present
+    key: https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
+
+- name: Ensure major dependencies are installed (EPEL/config-manager/ELRepo)
+  ansible.builtin.dnf:
+    name:
+      - epel-release
+      - dnf-plugins-core
+      - "https://www.elrepo.org/elrepo-release-{{ ansible_distribution_major_version }}.el{{ ansible_distribution_major_version }}.elrepo.noarch.rpm"
+    state: present
+    update_cache: true
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution != "Fedora"
+
+- name: Ensure driver dependencies are installed (kmod-r8125)
+  ansible.builtin.dnf:
+    name:
+      - kmod-r8125
+    state: present
+    update_cache: true
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution != "Fedora"
+
+- name: Permanently blacklist the r8169 module
+  ansible.builtin.copy:
+    content: |
+      blacklist r8169
+      install r8169 /bin/true
+    dest: /etc/modprobe.d/blacklist-r8169.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Rebuild initramfs
+    - Reboot server
+
+- name: Unload r8169 module
+  community.general.modprobe:
+    name: r8169
+    state: absent
+
+- name: Load r8125 module
+  community.general.modprobe:
+    name: r8125
+    state: present
+
+- name: Ensure r8125 module loads on boot
+  ansible.builtin.copy:
+    content: "r8125\n"
+    dest: /etc/modules-load.d/r8125.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enforce strict interface names
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/systemd/network/{{ item.dest }}"
+    mode: "{{ item.mode | default('0664') }}"
+    owner: root
+    group: root
+  loop:
+    - { src: '10-lan.link.j2', dest: "10-lan.link" }
+    - { src: '20-wan.link.j2', dest: "20-wan.link" }
+  notify:
+    - Rebuild initramfs
+    - Reboot server
+
+- name: Deploy NetworkManager LAN connection
+  ansible.builtin.template:
+    src: lan0.nmconnection.j2
+    dest: /etc/NetworkManager/system-connections/lan0.nmconnection
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Deploy NetworkManager VLAN connections
+  ansible.builtin.template:
+    src: "vlan.nmconnection.j2"
+    dest: "/etc/NetworkManager/system-connections/{{ item.name }}.nmconnection"
+    owner: root
+    group: root
+    mode: '0600'
+  loop:
+    - { name: 'vlan10', id: 10, ipv4: '172.168.10.1/24' }
+    - { name: 'vlan20', id: 20, ipv4: '172.168.20.1/24' }
+    - { name: 'vlan30', id: 30, ipv4: '172.168.30.1/24' }
+  notify: Reload NetworkManager

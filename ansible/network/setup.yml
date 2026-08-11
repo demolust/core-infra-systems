@@ -1,0 +1,12 @@
+---
+- name: Network Nodes Setup
+  hosts: network_nodes
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Base network setup
+      ansible.builtin.include_tasks: tasks/network_setup.yml
+
+  handlers:
+    - name: Load Handlers
+      ansible.builtin.import_tasks: handlers/handlers.yml
