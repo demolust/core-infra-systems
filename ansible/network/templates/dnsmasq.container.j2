@@ -7,7 +7,9 @@ Wants=network-online.target
 [Container]
 ContainerName=dnsmasq
 Image=docker.io/4km3/dnsmasq
-Volume={{ base_dir }}/configs/dnsmasq.conf:/etc/dnsmasq.conf:Z
+Volume={{ dnsmasq_config_dir }}/dnsmasq.conf:/etc/dnsmasq.conf:ro,Z
+Volume={{ dnsmasq_config_dir }}/dhcp-hosts.conf:/etc/dnsmasq.d/dhcp-hosts.conf:ro,Z
+Volume={{ dnsmasq_state_dir }}:/var/lib/dnsmasq:Z
 AddCapability=NET_ADMIN NET_BIND_SERVICE NET_RAW
 Network=host
 

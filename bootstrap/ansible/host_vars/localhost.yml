@@ -1,10 +1,10 @@
 ---
 wan_interface: "{{ lookup('env', 'WAN_INT') | default('wlp2s0', true) }}"
 bootstrap_interface: "{{ lookup('env', 'BOOTSTRAP_INT') | default('enp1s0f0', true) }}"
-bootstrap_ip: "172.168.100.1"
+bootstrap_ip: "172.31.255.20"
 bootstrap_subnet: "24"
-bootstrap_ip_range_1: "172.168.100.50"
-bootstrap_ip_range_2: "172.168.100.150"
+bootstrap_ip_range_1: "172.31.255.50"
+bootstrap_ip_range_2: "172.31.255.150"
 bootstrap_http_port: "80"
 sb_enabled: "{{ lookup('env', 'TARGET_SB_ENABLED') | default('False') | bool }}"
 arch_map:

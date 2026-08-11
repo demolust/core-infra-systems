@@ -1,0 +1,5 @@
+# Static DHCP reservations - Managed by Ansible/Jinja2
+# Reservations will be generated from NetBox.
+{% for reservation in dhcp_reservations %}
+{{ reservation.mac }},{{ reservation.ipv4 }},{{ reservation.name }}
+{% endfor %}

@@ -9,15 +9,18 @@ bind-dynamic
 # Disable DNS functionality (since only need DHCP)
 port=0
 
+# Load static DHCP reservations and persist dynamic leases
+dhcp-hostsfile=/etc/dnsmasq.d/dhcp-hosts.conf
+dhcp-leasefile=/var/lib/dnsmasq/dnsmasq.leases
+
 {% for vlan in router_vlans %}
 {% set subnet = vlan.ipv4.split('.')[0:3] | join('.') %}
 # VLAN {{ vlan.id }} ({{ vlan.name }})
-dhcp-range=interface:{{ vlan.name }},{{ subnet }}.100,{{ subnet }}.200,24h
-dhcp-option=interface:{{ vlan.name }},option:router,{{ vlan.ipv4 }}
-dhcp-option=interface:{{ vlan.name }},option:dns-server,{{ vlan.ipv4 }}
+dhcp-range=set:vlan{{ vlan.id }},{{ subnet }}.100,{{ subnet }}.200,255.255.255.0,24h
+dhcp-option=tag:vlan{{ vlan.id }},option:router,{{ vlan.ipv4 }}
+dhcp-option=tag:vlan{{ vlan.id }},option:dns-server,{{ vlan.ipv4 }}
 
 {% endfor %}
-
 # Force a safe MTU
 dhcp-option=26,1460
 

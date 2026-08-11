@@ -25,6 +25,7 @@
       - rpmconf
       - systemd-container
       - firewalld
+      - ethtool
       - rsyslog
       - nmap
       - openssl

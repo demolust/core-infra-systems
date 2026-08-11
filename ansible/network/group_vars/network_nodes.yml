@@ -1,6 +1,8 @@
 ---
 # General
 base_dir: "/data"
+dnsmasq_config_dir: "{{ base_dir }}/configs/dnsmasq"
+dnsmasq_state_dir: "{{ base_dir }}/state/dnsmasq"
 
 router_vlans:
   - { name: 'vlan10', id: 10, ipv4: '172.16.10.1' }

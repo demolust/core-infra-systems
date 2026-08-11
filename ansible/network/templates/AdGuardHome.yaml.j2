@@ -11,11 +11,24 @@ users:
 # DNS Configuration
 dns:
   bind_hosts:
-    #- 0.0.0.0
+    - 127.0.0.1
+    - {{ ansible_default_ipv4.address }}
 {% for vlan in router_vlans %}
     - {{ vlan.ipv4 }}
 {% endfor %}
   port: 53
+
+  # Disable rate-limiting so rapid UDP bursts from libuv / parallel processes aren't dropped
+  ratelimit: 0
+
+  # Query all upstream DNS servers simultaneously and return the fastest response
+  upstream_mode: parallel
+  upstream_timeout: 2s
+
+  # Enable 32MB cache and Optimistic Caching (serve cached DNS instantly while refreshing in background)
+  cache_size: 33554432
+  cache_optimistic: true
+
   bootstrap_dns:
     - 9.9.9.9
     - 149.112.112.112
@@ -26,9 +39,29 @@ dns:
   # Allow requests from local networks
   allowed_clients:
 {% for vlan in router_vlans %}
-    - {{ vlan.ipv4 }}
+{% set subnet = vlan.ipv4.split('.')[0:3] | join('.') %}
+    - {{ subnet }}.0/24
 {% endfor %}
-    #- 192.168.1.0/24
-    #- 127.0.0.0/8
+    - {{ wan_network_cidr }}
+    - 127.0.0.1
+
+# Basic DNS filtering
+filtering:
+  protection_enabled: true
+  filtering_enabled: true
+  filters_update_interval: 24
+
+filters:
+  - enabled: true
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt
+    name: AdGuard DNS filter
+    id: 1
+  - enabled: true
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt
+    name: AdAway Default Blocklist
+    id: 2
+
+whitelist_filters: []
+user_rules: []
 
 schema_version: 34

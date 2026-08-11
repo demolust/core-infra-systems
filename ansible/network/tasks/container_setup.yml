@@ -28,7 +28,7 @@
     state: directory
     mode: '0755'
 
-- name: Create config irectory structure
+- name: Create container directory structure
   ansible.builtin.file:
     path: "{{ base_dir }}/{{ item }}"
     state: directory
@@ -38,8 +38,15 @@
   loop:
     - "."
     - "configs"
+    - "configs/dnsmasq"
     - "configs/adguard/work"
     - "configs/adguard/conf"
+    - "state"
+    - "state/dnsmasq"
+
+- name: Set network CIDR fact
+  ansible.builtin.set_fact:
+    wan_network_cidr: "{{ ansible_default_ipv4.address | regex_replace('\\.\\d+$', '.0/24') }}"
 
 - name: Deploy root containers configuration files
   ansible.builtin.template:
@@ -50,7 +57,8 @@
     group: "wheel"
     force: "{{ item.force | default('true') }}"
   loop:
-    - { src: 'dnsmasq.conf.j2', dest: "{{ base_dir }}/configs/dnsmasq.conf" }
+    - { src: 'dnsmasq.conf.j2', dest: "{{ dnsmasq_config_dir }}/dnsmasq.conf" }
+    - { src: 'dhcp-hosts.conf.j2', dest: "{{ dnsmasq_config_dir }}/dhcp-hosts.conf" }
     - { src: 'AdGuardHome.yaml.j2', dest: "{{ base_dir }}/configs/adguard/conf/AdGuardHome.yaml" }
   register: configs
 
@@ -77,4 +85,3 @@
     - dnsmasq.service
     - adguard.service
   when: quadlets.changed or configs.changed
-
