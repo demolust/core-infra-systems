@@ -1,0 +1,15 @@
+[connection]
+id=wan0
+type=ethernet
+interface-name=wan0
+
+[ethernet]
+
+[ipv4]
+address1={{ ansible_default_ipv4.address }}/24
+gateway={{ ansible_default_ipv4.gateway }}
+dns=8.8.8.8;1.1.1.1;
+method=manual
+
+[ipv6]
+method=disabled

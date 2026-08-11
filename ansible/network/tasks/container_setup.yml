@@ -1,0 +1,80 @@
+---
+- name: Remove conflicting packages (Fedora/RedHat)
+  ansible.builtin.dnf:
+    name:
+      - systemd-resolved
+    state: absent
+  when: ansible_os_family == "RedHat"
+
+- name: Ensure major dependencies are installed (podman)
+  ansible.builtin.dnf:
+    name:
+      - podman
+      - podman-docker
+      - podman-compose
+    state: present
+    update_cache: true
+  when: ansible_os_family == "RedHat"
+
+- name: Enable podman-auto-update timer
+  ansible.builtin.systemd:
+    name: podman-auto-update.timer
+    state: started
+    enabled: true
+
+- name: Ensure root systemd contianer directory exists
+  ansible.builtin.file:
+    path: "/etc/containers/systemd"
+    state: directory
+    mode: '0755'
+
+- name: Create config irectory structure
+  ansible.builtin.file:
+    path: "{{ base_dir }}/{{ item }}"
+    state: directory
+    mode: '2775'
+    owner: "root"
+    group: "wheel"
+  loop:
+    - "."
+    - "configs"
+    - "configs/adguard/work"
+    - "configs/adguard/conf"
+
+- name: Deploy root containers configuration files
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode | default('0664') }}"
+    owner: "root"
+    group: "wheel"
+    force: "{{ item.force | default('true') }}"
+  loop:
+    - { src: 'dnsmasq.conf.j2', dest: "{{ base_dir }}/configs/dnsmasq.conf" }
+    - { src: 'AdGuardHome.yaml.j2', dest: "{{ base_dir }}/configs/adguard/conf/AdGuardHome.yaml" }
+  register: configs
+
+- name: Deploy root Quadlet files
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/containers/systemd/{{ item.dest }}"
+  loop:
+    - { src: 'dnsmasq.container.j2', dest: 'dnsmasq.container' }
+    - { src: 'adguard.container.j2', dest: 'adguard.container' }
+  register: quadlets
+
+- name: Reload systemd to generate service from Quadlet
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: quadlets.changed
+
+- name: Start root containers
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+    enabled: true
+  loop:
+    - dnsmasq.service
+    - adguard.service
+  when: quadlets.changed or configs.changed
+

@@ -12,3 +12,12 @@
 
 - name: Reload NetworkManager
   ansible.builtin.command: nmcli connection reload
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Reload firewalld
+  ansible.builtin.systemd:
+    name: firewalld
+    state: reloaded

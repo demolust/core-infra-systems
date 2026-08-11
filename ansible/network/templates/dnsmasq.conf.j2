@@ -1,0 +1,27 @@
+# Containerized dnsmasq.conf - Managed by Ansible/Jinja2
+
+# Listen on host's VLAN interfaces
+{% for vlan in router_vlans %}
+interface=lan0.{{ vlan.id }}
+{% endfor %}
+bind-dynamic
+
+# Disable DNS functionality (since only need DHCP)
+port=0
+
+{% for vlan in router_vlans %}
+{% set subnet = vlan.ipv4.split('.')[0:3] | join('.') %}
+# VLAN {{ vlan.id }} ({{ vlan.name }})
+dhcp-range=interface:{{ vlan.name }},{{ subnet }}.100,{{ subnet }}.200,24h
+dhcp-option=interface:{{ vlan.name }},option:router,{{ vlan.ipv4 }}
+dhcp-option=interface:{{ vlan.name }},option:dns-server,{{ vlan.ipv4 }}
+
+{% endfor %}
+
+# Force a safe MTU
+dhcp-option=26,1460
+
+# Enable logging
+log-facility=-
+log-dhcp
+log-queries

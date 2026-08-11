@@ -4,8 +4,17 @@
   become: true
   gather_facts: true
   tasks:
+    - name: Base setup
+      ansible.builtin.include_tasks: tasks/base_setup.yml
+
     - name: Base network setup
       ansible.builtin.include_tasks: tasks/network_setup.yml
+
+    - name: Base apps setup
+      ansible.builtin.include_tasks: tasks/container_setup.yml
+
+    - name: Fiewall setup
+      ansible.builtin.include_tasks: tasks/firewall_setup.yml
 
   handlers:
     - name: Load Handlers

@@ -1,0 +1,19 @@
+# AdGuard Home Podman Quadlet config - Managed by Ansible/Jinja2
+[Unit]
+Description=AdGuard Home DNS Server
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName=adguard
+Image=docker.io/adguard/adguardhome:latest
+Volume={{ base_dir }}/configs/adguard/work:/opt/adguardhome/work:Z
+Volume={{ base_dir }}/configs/adguard/conf:/opt/adguardhome/conf:Z
+Network=host
+
+[Service]
+Restart=on-failure
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,23 @@
+---
+# General
+base_dir: "/data"
+
+router_vlans:
+  - { name: 'vlan10', id: 10, ipv4: '172.16.10.1' }
+  - { name: 'vlan20', id: 20, ipv4: '172.16.20.1' }
+  - { name: 'vlan30', id: 30, ipv4: '172.16.30.1' }
+
+net_services:
+  # port: '22', proto: 'tcp'
+  - { name: 'ssh' }
+  # port: '53', proto: 'upd' & 'tcp'
+  - { name: 'dns' }
+  # port: '67', proto: 'upd'
+  - { name: 'dhcp' }
+  # adguard web port
+  - { port: '8080', proto: 'tcp'}
+
+# Adguard
+adguard_admin: "{{ lookup('env', 'TARGET_ADGUARD_ADMIN') | default('', true) }}"
+adguard_admin_pass: "{{ lookup('env', 'TARGET_ADGUARD_ADMIN_PASS') | default('', true) }}"
+adguard_web_port: 8080

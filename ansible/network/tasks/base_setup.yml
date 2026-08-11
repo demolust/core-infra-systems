@@ -1,0 +1,67 @@
+---
+- name: Ensure major dependencies are installed (EPEL/config-manager)
+  ansible.builtin.dnf:
+    name:
+      - epel-release
+      - dnf-plugins-core
+    state: present
+    update_cache: true
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution != "Fedora"
+
+- name: Install base packages (Fedora/RedHat)
+  ansible.builtin.dnf:
+    name:
+      - dracut-config-rescue
+      - util-linux
+      - hdparm
+      - nvme-cli
+      - acpid
+      - irqbalance
+      - tuned
+      - tuned-ppd
+      - lm_sensors
+      - rpmconf
+      - systemd-container
+      - firewalld
+      - rsyslog
+      - nmap
+      - openssl
+      - sysstat
+      - htop
+      - btop
+      - iotop-c
+      - lshw
+      - strace
+      - ltrace
+      - vim
+      - tmux
+      - git
+      - curl
+      - wget2
+      - rsync
+      - jq
+      - yq
+      - bc
+      - findutils
+      - gawk
+      - parallel
+      - ncdu
+      - fuse
+      - fuse3
+      - unzip
+      - p7zip
+      - unrar
+    state: present
+    update_cache: true
+  when: ansible_os_family == "RedHat"
+
+- name: Allow services to bind to non-local IPs (prevents DNS crash on link down)
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_nonlocal_bind
+    value: '1'
+    sysctl_set: true
+    state: present
+    reload: true
+    sysctl_file: /etc/sysctl.d/99-router-net.conf

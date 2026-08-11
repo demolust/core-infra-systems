@@ -1,0 +1,34 @@
+# Web UI Configuration
+http:
+  address: 0.0.0.0:{{ adguard_web_port }}
+
+language: en
+
+users:
+  - name: "{{ adguard_admin }}"
+    password: "{{ adguard_admin_pass }}"
+
+# DNS Configuration
+dns:
+  bind_hosts:
+    #- 0.0.0.0
+{% for vlan in router_vlans %}
+    - {{ vlan.ipv4 }}
+{% endfor %}
+  port: 53
+  bootstrap_dns:
+    - 9.9.9.9
+    - 149.112.112.112
+  upstream_dns:
+    - https://dns.quad9.net/dns-query
+    - https://dns.cloudflare.com/dns-query
+
+  # Allow requests from local networks
+  allowed_clients:
+{% for vlan in router_vlans %}
+    - {{ vlan.ipv4 }}
+{% endfor %}
+    #- 192.168.1.0/24
+    #- 127.0.0.0/8
+
+schema_version: 34

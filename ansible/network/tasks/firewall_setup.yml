@@ -1,0 +1,65 @@
+---
+- name: Bind all wan related interfaces to the public zone
+  ansible.posix.firewalld:
+    zone: public
+    interface: wan0
+    permanent: true
+    state: enabled
+    immediate: true
+  when: ansible_os_family == "RedHat"
+
+- name: Deny unecessary ports on public zone
+  ansible.posix.firewalld:
+    zone: public
+    service: "{{ item.name | default(omit) }}"
+    port: "{{ (item.port + '/' + item.proto) if item.name is not defined else omit }}"
+    permanent: true
+    state: disabled
+    immediate: true
+  loop:
+    - { name: 'cockpit' }
+  when: ansible_os_family == "RedHat"
+
+- name: Enable Masquerading (NAT) on public zone
+  ansible.posix.firewalld:
+    zone: public
+    masquerade: true
+    permanent: true
+    state: enabled
+    immediate: true
+  when: ansible_os_family == "RedHat"
+
+- name: Create a combined list of all interfaces
+  ansible.builtin.set_fact:
+    all_interfaces: "{{ ['lan0'] + router_vlans | map(attribute='id') | map('regex_replace', '^', 'lan0.') | list }}"
+  when: ansible_os_family == "RedHat"
+
+- name: Bind all vlan related interfaces to the internal zone
+  ansible.posix.firewalld:
+    zone: internal
+    interface: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop: "{{ all_interfaces }}"
+  when: ansible_os_family == "RedHat"
+
+- name: Allow necessary ports on internal zone
+  ansible.posix.firewalld:
+    zone: internal
+    service: "{{ item.name | default(omit) }}"
+    port: "{{ (item.port + '/' + item.proto) if item.name is not defined else omit }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop: "{{ net_services }}"
+  when: ansible_os_family == "RedHat"
+
+- name: Copy firewalld policy file
+  ansible.builtin.template:
+    src: firewalld_int_to_ext.xml.j2
+    dest: /etc/firewalld/policies/int_to_ext.xml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload firewalld
