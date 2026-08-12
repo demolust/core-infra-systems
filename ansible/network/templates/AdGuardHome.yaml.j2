@@ -12,6 +12,7 @@ users:
 dns:
   bind_hosts:
     - 127.0.0.1
+    - {{ wg_server_ip }}
     - {{ ansible_default_ipv4.address }}
 {% for vlan in router_vlans %}
     - {{ vlan.ipv4 }}
@@ -39,10 +40,10 @@ dns:
   # Allow requests from local networks
   allowed_clients:
 {% for vlan in router_vlans %}
-{% set subnet = vlan.ipv4.split('.')[0:3] | join('.') %}
-    - {{ subnet }}.0/24
+    - {{ vlan.network }}
 {% endfor %}
     - {{ wan_network_cidr }}
+    - {{ wg_network_cidr }}
     - 127.0.0.1
 
 # Basic DNS filtering

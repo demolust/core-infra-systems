@@ -1,0 +1,8 @@
+[Unit]
+Description=DuckDNS Update Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl -k "https://www.duckdns.org/update?domains={{ duckdns_domain }}&token={{ duckdns_token }}&ip="

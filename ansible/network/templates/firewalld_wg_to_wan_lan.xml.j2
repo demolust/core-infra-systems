@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policy target="CONTINUE">
+  <ingress-zone name="wireguard"/>
+  <egress-zone name="public"/>
+  <rule family="ipv4">
+    <destination address="{{ wan_network_cidr }}"/>
+    <accept/>
+  </rule>
+</policy>

@@ -13,6 +13,9 @@
 - name: Reload NetworkManager
   ansible.builtin.command: nmcli connection reload
 
+- name: Activate WireGuard
+  ansible.builtin.command: nmcli connection up wg0
+
 - name: Reload systemd
   ansible.builtin.systemd:
     daemon_reload: true
