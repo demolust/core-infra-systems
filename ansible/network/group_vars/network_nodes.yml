@@ -5,9 +5,10 @@ dnsmasq_config_dir: "{{ base_dir }}/configs/dnsmasq"
 dnsmasq_state_dir: "{{ base_dir }}/state/dnsmasq"
 
 router_vlans:
-  - { name: 'vlan10', id: 10, ipv4: '172.16.10.1' }
-  - { name: 'vlan20', id: 20, ipv4: '172.16.20.1' }
-  - { name: 'vlan30', id: 30, ipv4: '172.16.30.1' }
+  - { name: 'vlan10', id: 10, ipv4: '172.16.10.1', network: '172.16.10.0/24' }
+  - { name: 'vlan20', id: 20, ipv4: '172.16.20.1', network: '172.16.20.0/24' }
+  - { name: 'vlan30', id: 30, ipv4: '172.16.30.1', network: '172.16.30.0/24' }
+  - { name: 'vlan40', id: 40, ipv4: '172.16.40.1', network: '172.16.40.0/24' }
 
 net_services:
   # port: '22', proto: 'tcp'
@@ -23,3 +24,13 @@ net_services:
 adguard_admin: "{{ lookup('env', 'TARGET_ADGUARD_ADMIN') | default('', true) }}"
 adguard_admin_pass: "{{ lookup('env', 'TARGET_ADGUARD_ADMIN_PASS') | default('', true) }}"
 adguard_web_port: 8080
+
+# wireguard
+wg_server_port: "{{ lookup('env', 'TARGET_WIREGUARD_PORT') | default('', true) }}"
+wg_server_priv_key: "{{ lookup('env', 'TARGET_WIREGUARD_PRIV_KEY') | default('', true) }}"
+wg_server_ip: "10.100.0.1"
+wg_server_mask: "24"
+wg_network_cidr: "{{ wg_server_ip | regex_replace('\\.\\d+$', '.0/24') }}"
+duckdns_domain: "{{ lookup('env', 'TARGET_DDNS_DOMAIN') | default('', true) }}"
+duckdns_token: "{{ lookup('env', 'TARGET_DDNS_TOKEN') | default('', true) }}"
+

@@ -1,0 +1,25 @@
+[connection]
+id=wg0
+type=wireguard
+interface-name=wg0
+zone=wireguard
+
+[wireguard]
+private-key={{ wg_server_priv_key }}
+private-key-flags=0
+listen-port={{ wg_server_port }}
+
+[ipv4]
+address1={{ wg_server_ip }}/{{ wg_server_mask }}
+method=manual
+
+[ipv6]
+method=disabled
+
+{% for peer in wireguard_peers %}
+# Peer: {{ peer.name }}
+[wireguard-peer.{{ peer.pub_key }}]
+preshared-key={{ peer.preshared_key }}
+preshared-key-flags=0
+allowed-ips={{ peer.vpn_ip }}/32;
+{% endfor %}

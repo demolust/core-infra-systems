@@ -16,6 +16,9 @@
     - name: Fiewall setup
       ansible.builtin.include_tasks: tasks/firewall_setup.yml
 
+    - name: VPN setup
+      ansible.builtin.include_tasks: tasks/vpn_setup.yml
+
   handlers:
     - name: Load Handlers
       ansible.builtin.import_tasks: handlers/handlers.yml

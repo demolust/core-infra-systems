@@ -36,6 +36,7 @@
       - lshw
       - strace
       - ltrace
+      - systemd-resolved
       - vim
       - tmux
       - git
@@ -57,6 +58,21 @@
     state: present
     update_cache: true
   when: ansible_os_family == "RedHat"
+
+- name: Disable systemd-resolved DNS stub listener
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/resolved.conf
+    regexp: '^#?DNSStubListener='
+    line: 'DNSStubListener=no'
+    insertafter: '^\[Resolve\]'
+    state: present
+
+- name: Disable & mask systemd-resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved.service
+    state: stopped
+    enabled: false
+    masked: true
 
 - name: Allow services to bind to non-local IPs (prevents DNS crash on link down)
   ansible.posix.sysctl:

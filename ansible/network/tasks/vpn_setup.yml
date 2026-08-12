@@ -1,0 +1,102 @@
+---
+- name: Ensure major dependencies are installed (wireguard-tools)
+  ansible.builtin.dnf:
+    name:
+      - wireguard-tools
+    state: present
+    update_cache: true
+  when: ansible_os_family == "RedHat"
+
+- name: Enable IPv4 traffic forwarding in the kernel
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: true
+    state: present
+    reload: true
+
+- name: Ensure dedicated wireguard zone exists
+  ansible.posix.firewalld:
+    zone: wireguard
+    state: present
+    permanent: true
+  register: wg_zone_creation
+
+- name: Reload firewalld to recognize the new zone
+  ansible.builtin.systemd:
+    name: firewalld
+    state: reloaded
+  when: wg_zone_creation.changed
+
+- name: Deploy WireGuard forwarding policies
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/firewalld/policies/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - { src: 'firewalld_wg_to_internal.xml.j2', dest: 'wg_to_internal.xml' }
+    - { src: 'firewalld_wg_to_wan_lan.xml.j2', dest: 'wg_to_wan_lan.xml' }
+  notify: Reload firewalld
+
+- name: Allow necessary ports on wireguard zone
+  ansible.posix.firewalld:
+    zone: wireguard
+    service: "{{ item.name | default(omit) }}"
+    port: "{{ (item.port + '/' + item.proto) if item.name is not defined else omit }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop: "{{ net_services }}"
+  when: ansible_os_family == "RedHat"
+
+- name: Allow ICMP on wireguard zone
+  ansible.posix.firewalld:
+    zone: wireguard
+    protocol: icmp
+    permanent: true
+    state: enabled
+    immediate: true
+  when: ansible_os_family == "RedHat"
+
+- name: Allow WireGuard traffic on the WAN (public zone)
+  ansible.posix.firewalld:
+    zone: public
+    port: "{{ wg_server_port }}/udp"
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Deploy DuckDNS systemd timer
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/systemd/system/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - { src: "duckdns.service.j2", dest: "duckdns.service" }
+    - { src: "duckdns.timer.j2", dest: "duckdns.timer" }
+  notify:
+    - Reload systemd
+
+- name: Enable and start DuckDNS systemd timer
+  ansible.builtin.systemd:
+    name: duckdns.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Deploy NetworkManager WireGuard connection
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/NetworkManager/system-connections/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0600'
+  loop:
+    - { src: "wg0.nmconnection.j2", dest: "wg0.nmconnection" }
+  notify:
+    - Reload NetworkManager
+    - Activate WireGuard

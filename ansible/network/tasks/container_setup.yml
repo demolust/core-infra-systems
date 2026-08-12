@@ -1,11 +1,4 @@
 ---
-- name: Remove conflicting packages (Fedora/RedHat)
-  ansible.builtin.dnf:
-    name:
-      - systemd-resolved
-    state: absent
-  when: ansible_os_family == "RedHat"
-
 - name: Ensure major dependencies are installed (podman)
   ansible.builtin.dnf:
     name:
