@@ -1,13 +1,19 @@
 # Containerized dnsmasq.conf - Managed by Ansible/Jinja2
 
+# Add loopback for FQDN
+interface=lo
 # Listen on host's VLAN interfaces
 {% for vlan in router_vlans %}
 interface=lan0.{{ vlan.id }}
 {% endfor %}
 bind-dynamic
 
-# Disable DNS functionality (since only need DHCP)
-port=0
+# Enable local DNS functionality only a specific port to allow fowarding FQDN to the DNS server
+port={{ local_fwd_dns_port }}
+domain={{ lab_domain }}
+local=/{{ lab_domain }}/
+dhcp-option=option:domain-search,{{ lab_domain }}
+interface-name={{ ansible_hostname }}.{{ lab_domain }},lan0.10/4
 
 # Load static DHCP reservations and persist dynamic leases
 dhcp-hostsfile=/etc/dnsmasq.d/dhcp-hosts.conf

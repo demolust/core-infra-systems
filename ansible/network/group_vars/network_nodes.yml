@@ -20,6 +20,9 @@ net_services:
   # adguard web port
   - { port: '8080', proto: 'tcp'}
 
+lab_domain: "{{ lookup('env', 'TARGET_LAB_DOMAIN') | default('', true) }}"
+local_fwd_dns_port: "1053"
+
 # Adguard
 adguard_admin: "{{ lookup('env', 'TARGET_ADGUARD_ADMIN') | default('', true) }}"
 adguard_admin_pass: "{{ lookup('env', 'TARGET_ADGUARD_ADMIN_PASS') | default('', true) }}"

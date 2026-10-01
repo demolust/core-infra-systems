@@ -1,6 +1,8 @@
 # Static DHCP reservations - Managed by Ansible/Jinja2
 # Reservations will be generated from NetBox.
 {% for reservation in dhcp_reservations %}
-# {{ reservation.name }}
-{{ reservation.mac }},{{ reservation.ipv4 }}
+{% if reservation.ref_name | default('') %}
+# {{ reservation.ref_name }}
+{% endif %}
+{{ reservation.mac }},{{ reservation.ipv4 }}{{ ',' ~ reservation.name if reservation.name | default('') else '' }}
 {% endfor %}

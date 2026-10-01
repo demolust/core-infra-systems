@@ -36,6 +36,7 @@ dns:
   upstream_dns:
     - https://dns.quad9.net/dns-query
     - https://dns.cloudflare.com/dns-query
+    - "[/{{ lab_domain }}/]127.0.0.1:{{ local_fwd_dns_port }}"
 
   # Allow requests from local networks
   allowed_clients:
