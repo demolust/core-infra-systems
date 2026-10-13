@@ -20,7 +20,7 @@ Adjust the example addresses and port numbers to match your environment. VLAN 10
 | Workstation address | Bootstrap DHCP lease, or `192.168.100.20` when serving DHCP | VLAN DHCP lease |
 | Gateway | Existing bootstrap router, if needed | `10.10.10.1` |
 
-The controller hostname is **`unifi.example.com`**. Use direct IP addresses during the transition. Reserve the controller addresses or configure them statically outside the DHCP pools.
+The optional controller hostname is **`unifi.example.com`**. Use it only when the VLAN DHCP scope supplies a DNS server that resolves this hostname to the controller's management address, `10.10.10.10`. Supplying a DNS server through DHCP does not create the DNS record; configure that record on the DNS server separately. Use direct IP addresses during the transition. Reserve the controller addresses or configure them statically outside the DHCP pools.
 
 ### Host roles
 
@@ -164,7 +164,7 @@ The network host already provides VLAN 10's gateway and **VLAN DHCP** scope. Cre
 
 Port 1 carries VLAN 10 **and any other configured VLANs** (such as 20 and 30) **tagged** to the network host. Ports 3 and 7 deliver only management VLAN 10 **untagged** to the hosts; those host interfaces do not need VLAN subinterfaces. Other access ports deliver their selected VLAN untagged.
 
-**Check:** port 1 and every intermediate uplink allow tagged VLAN 10 and all additional VLANs in use. With a Custom tagged VLAN list, include each required VLAN explicitly. Keep port 1's native network as Default (1).
+**Check:** port 1 allows tagged VLAN 10 and all additional VLANs in use. With a Custom tagged VLAN list, include each required VLAN explicitly. Keep port 1's native network as Default (1).
 
 ### 5. Test management before moving the switch
 
@@ -185,7 +185,21 @@ Port 1 carries VLAN 10 **and any other configured VLANs** (such as 20 and 30) **
    https://10.10.10.10:8443/manage/account/login?redirect=%2Fmanage
    ```
 
-6. Check the switch's **inform destination**: the controller address it uses on TCP 8080. That address must work from VLAN 10. A retained bootstrap controller interface does not automatically provide routing to its old address.
+6. Inspect the switch's **inform destination**: the controller URL it uses on TCP 8080. Find the switch's bootstrap IP in UniFi or the Bootstrap DHCP lease list. For a switch with the example lease `192.168.100.30`, connect from the workstation:
+
+   ```sh
+   ssh <device-ssh-user>@192.168.100.30
+   ```
+
+   Replace `<device-ssh-user>` with the adopted device's SSH username and `192.168.100.30` with its actual bootstrap lease address. Run **on the switch**:
+
+   ```text
+   info
+   ```
+
+   Look for the inform URL in the status output and record it privately. Command availability varies by model and firmware; if `info` is unavailable, run `help` to find the supported status command.
+
+7. Check the URL's host. For this example, the intended final URL is `http://10.10.10.10:8080/inform`. An address of `192.168.100.10` still depends on the controller's bootstrap interface. If the URL uses a hostname, confirm the DNS available to VLAN 10 resolves it to the intended controller address. A retained bootstrap controller interface does not automatically provide routing to its old address.
 
 If the inform destination is bootstrap-only, provide a working routed path or prepare to correct it over SSH after cutover using the recovery step below. Check any controller **Inform Host / Override Inform Host** setting too.
 
@@ -212,8 +226,8 @@ The switch now requests its address from the **VLAN 10 scope of VLAN DHCP**, ins
 
 ### 7. Remove bootstrap connections
 
-1. Confirm the switch's inform destination works without the bootstrap network.
-2. Disconnect the controller bootstrap interface from **port 2**.
+1. From the workstation's management interface on **port 3**, open `https://10.10.10.10:8443` and confirm the switch is online with its VLAN 10 address. SSH to that address using its adopted credentials and run `info` again. Confirm the inform URL uses `10.10.10.10`, or a hostname that resolves to it from VLAN 10. Correct a stale bootstrap URL using the recovery instructions before continuing.
+2. Disconnect the controller bootstrap interface from **port 2**, leaving its management interface on **port 7** connected. Wait several minutes, then refresh **UniFi Devices** through the management UI and confirm the switch remains online. If it goes offline, reconnect port 2 and repair the inform path before continuing.
 3. Remove **Bootstrap DHCP**:
 
    | Provider | Action |
@@ -223,7 +237,7 @@ The switch now requests its address from the **VLAN 10 scope of VLAN DHCP**, ins
 
 4. Disconnect the workstation bootstrap interface from **port 4**.
 5. Keep the **network host connected to port 1**, workstation management on **port 3**, and controller management on **port 7**.
-6. Confirm the switch remains online; save a new controller backup.
+6. With all bootstrap connections removed, wait several minutes and refresh **UniFi Devices** through the management UI. Confirm the switch remains online with its VLAN 10 address, then save a new controller backup. If it goes offline, restore the bootstrap connections and DHCP service, and investigate before continuing.
 
 **Check:** management works with all temporary bootstrap connections removed.
 
@@ -293,4 +307,5 @@ Use UniFi Network and controller backups for persistent configuration. Do not pu
 - [Switch Port VLAN Assignment](https://help.ui.com/hc/en-us/articles/26136855808919-Switch-Port-VLAN-Assignment-Trunk-Access-Ports)
 - [Required Ports](https://help.ui.com/hc/en-us/articles/218506997-Required-Ports-Reference)
 - [Layer 3 Adoption / Inform Configuration](https://help.ui.com/hc/en-us/articles/204909754-Remote-Adoption-Layer-3)
+- [Device Debug Console and SSH Access](https://help.ui.com/hc/en-us/articles/204909374-Connecting-to-UniFi-with-Debug-Tools-SSH)
 - [VLAN Troubleshooting](https://help.ui.com/hc/en-us/articles/9592924981911-Virtual-Network-VLAN-Troubleshooting)
