@@ -3,6 +3,11 @@
   hosts: network_nodes
   become: true
   gather_facts: true
+
+  pre_tasks:
+  - name: Pre setup
+    ansible.builtin.include_tasks: tasks/pre_setup.yml
+
   tasks:
     - name: Base setup
       ansible.builtin.include_tasks: tasks/base_setup.yml

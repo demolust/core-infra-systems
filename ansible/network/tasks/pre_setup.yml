@@ -1,0 +1,4 @@
+---
+- name: Set network CIDR fact
+  ansible.builtin.set_fact:
+    wan_network_cidr: "{{ ansible_facts['default_ipv4']['address'] | regex_replace('\\.\\d+$', '.0/24') }}"

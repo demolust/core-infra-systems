@@ -7,8 +7,8 @@ zone=public
 [ethernet]
 
 [ipv4]
-address1={{ ansible_default_ipv4.address }}/24
-gateway={{ ansible_default_ipv4.gateway }}
+address1={{ ansible_facts['default_ipv4']['address'] }}/24
+gateway={{ ansible_facts['default_ipv4']['gateway'] }}
 dns=127.0.0.1;
 method=manual
 
