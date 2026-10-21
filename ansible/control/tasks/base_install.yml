@@ -20,8 +20,8 @@
     state: present
     update_cache: true
   when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution != "Fedora"
+    - ansible_facts['os_family'] == "RedHat"
+    - ansible_facts['distribution'] != "Fedora"
 
 - name: Check if CRB is already enabled
   ansible.builtin.shell: dnf repolist | grep -qi "^crb"
@@ -142,7 +142,7 @@
       - java-25-openjdk-headless
     state: present
     update_cache: true
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Install devel packages (Fedora/RedHat)
   ansible.builtin.dnf:
@@ -194,7 +194,7 @@
       - tesseract-devel
     state: present
     update_cache: true
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Clone Neovim Source
   ansible.builtin.git:
@@ -331,7 +331,7 @@
 
 - name: "Set {{ system_users.runner.name }} home directory fact"
   ansible.builtin.set_fact:
-    runner_home: "{{ getent_passwd[system_users.runner.name][4] }}"
+    runner_home: "{{ ansible_facts['getent_passwd'][system_users.runner.name][4] }}"
 
 - name: Deploy application initialization files
   ansible.builtin.template:

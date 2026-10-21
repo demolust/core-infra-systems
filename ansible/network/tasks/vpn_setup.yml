@@ -5,7 +5,7 @@
       - wireguard-tools
     state: present
     update_cache: true
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Enable IPv4 traffic forwarding in the kernel
   ansible.posix.sysctl:
@@ -49,7 +49,7 @@
     state: enabled
     immediate: true
   loop: "{{ net_services }}"
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Allow ICMP on wireguard zone
   ansible.posix.firewalld:
@@ -58,7 +58,7 @@
     permanent: true
     state: enabled
     immediate: true
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Allow WireGuard traffic on the WAN (public zone)
   ansible.posix.firewalld:

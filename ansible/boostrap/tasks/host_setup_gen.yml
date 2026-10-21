@@ -8,15 +8,15 @@
       - ufw
     state: present
     update_cache: true
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Ensure EPEL is installed (RHEL/Rocky/Alma)
   ansible.builtin.dnf:
     name: epel-release
     state: present
   when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution != "Fedora"
+    - ansible_facts['os_family'] == "RedHat"
+    - ansible_facts['distribution'] != "Fedora"
 
 - name: Install dependencies (Fedora/RedHat)
   ansible.builtin.dnf:
@@ -28,7 +28,7 @@
       - firewalld
     state: present
     update_cache: true
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Allow rootless user to bind to privileged ports
   ansible.posix.sysctl:
@@ -44,7 +44,7 @@
     port: "{{ item.port if item.name is not defined else omit }}"
     proto: "{{ item.proto }}"
   loop: "{{ pxe_services }}"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Open ports via firewalld
   ansible.posix.firewalld:
@@ -54,7 +54,7 @@
     state: enabled
     immediate: true
   loop: "{{ pxe_services }}"
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Open ports via iptables
   ansible.builtin.iptables:
@@ -64,7 +64,7 @@
     jump: ACCEPT
     action: insert
   loop: "{{ pxe_services }}"
-  when: ansible_os_family not in ["Debian", "RedHat"]
+  when: ansible_facts['os_family'] not in ["Debian", "RedHat"]
 
 - name: Enable Kernel IP Forwarding
   ansible.posix.sysctl:
@@ -78,7 +78,7 @@
     masquerade: true
     state: enabled
     immediate: true
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Configure UFW NAT
   block:
@@ -99,7 +99,7 @@
           -A POSTROUTING -o {{ wan_interface }} -j MASQUERADE
           COMMIT
       notify: Reload UFW
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Add temporary bootstrap IP
   ansible.builtin.command:

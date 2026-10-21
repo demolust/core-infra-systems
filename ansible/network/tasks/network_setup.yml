@@ -7,12 +7,12 @@
 - name: Ensure major dependencies are installed (ELRepo)
   ansible.builtin.dnf:
     name:
-      - "https://www.elrepo.org/elrepo-release-{{ ansible_distribution_major_version }}.el{{ ansible_distribution_major_version }}.elrepo.noarch.rpm"
+      - "https://www.elrepo.org/elrepo-release-{{ ansible_facts['distribution_major_version'] }}.el{{ ansible_facts['distribution_major_version'] }}.elrepo.noarch.rpm"
     state: present
     update_cache: true
   when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution != "Fedora"
+    - ansible_facts['os_family'] == "RedHat"
+    - ansible_facts['distribution'] != "Fedora"
 
 - name: Ensure driver dependencies are installed (kmod-r8125)
   ansible.builtin.dnf:
@@ -21,8 +21,8 @@
     state: present
     update_cache: true
   when:
-    - ansible_os_family == "RedHat"
-    - ansible_distribution != "Fedora"
+    - ansible_facts['os_family'] == "RedHat"
+    - ansible_facts['distribution'] != "Fedora"
 
 - name: Permanently blacklist the r8169 module
   ansible.builtin.copy:

@@ -9,7 +9,7 @@
     immediate: true
   loop:
     - { name: 'cockpit' }
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Enable Masquerading (NAT) on public zone
   ansible.posix.firewalld:
@@ -18,7 +18,7 @@
     permanent: true
     state: enabled
     immediate: true
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Allow necessary ports on internal zone
   ansible.posix.firewalld:
@@ -29,7 +29,7 @@
     state: enabled
     immediate: true
   loop: "{{ net_services }}"
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Copy firewalld policy file
   ansible.builtin.template:

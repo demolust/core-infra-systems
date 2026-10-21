@@ -13,7 +13,7 @@
     port: "{{ item.port if item.name is not defined else omit }}"
     proto: "{{ item.proto }}"
   loop: "{{ pxe_services }}"
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Close ports on firewalld
   ansible.posix.firewalld:
@@ -23,7 +23,7 @@
     state: disabled
     immediate: true
   loop: "{{ pxe_services }}"
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Close ports via iptables
   ansible.builtin.iptables:
@@ -33,7 +33,7 @@
     jump: ACCEPT
     action: remove
   loop: "{{ pxe_services }}"
-  when: ansible_os_family not in ["Debian", "RedHat"]
+  when: ansible_facts['os_family'] not in ["Debian", "RedHat"]
 
 - name: Disable Kernel IP Forwarding
   ansible.posix.sysctl:
@@ -47,7 +47,7 @@
     masquerade: false
     state: disabled
     immediate: true
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Disable UFW NAT
   block:
@@ -63,7 +63,7 @@
         marker: "# {mark} ANSIBLE MANAGED NAT RULES"
         state: absent
       notify: Reload UFW
-  when: ansible_os_family == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 - name: Remove temporary bootstrap IP
   ansible.builtin.command:

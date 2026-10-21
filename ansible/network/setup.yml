@@ -3,6 +3,8 @@
   hosts: network_nodes
   become: true
   gather_facts: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
 
   pre_tasks:
   - name: Pre setup

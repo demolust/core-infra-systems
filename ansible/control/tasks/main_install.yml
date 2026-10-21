@@ -23,7 +23,7 @@
       - samba-common
     state: present
     update_cache: true
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Generate smb configuration from template
   ansible.builtin.template:
@@ -55,7 +55,7 @@
   loop:
     - smb
     - nmb
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Enable podman-auto-update timer
   ansible.builtin.systemd:
@@ -69,7 +69,7 @@
     permanent: true
     state: enabled
     immediate: true
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Allow application ports via firewalld
   ansible.posix.firewalld:
@@ -77,7 +77,7 @@
     permanent: true
     state: enabled
     immediate: true
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
   loop:
     - "{{ navidrome_port }}/tcp"
     - "{{ vault_port }}/tcp"
@@ -90,7 +90,7 @@
     state: enabled
     immediate: true
   loop: "{{ unifi_ports }}"
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Allow PXE ports via firewalld
   ansible.posix.firewalld:
@@ -100,7 +100,7 @@
     state: enabled
     immediate: true
   loop: "{{ pxe_services }}"
-  when: ansible_os_family == "RedHat"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Create PXE directory structure
   ansible.builtin.file:
