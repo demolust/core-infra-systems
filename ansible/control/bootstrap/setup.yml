@@ -1,0 +1,4 @@
+---
+# Prepare PXE on the workstation; run target_host_setup.yml after installation.
+- name: Prepare workstation PXE environment
+  ansible.builtin.import_playbook: ../../boostrap/bootstrap_setup.yml

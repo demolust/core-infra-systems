@@ -27,7 +27,7 @@
 
 - name: Generate smb configuration from template
   ansible.builtin.template:
-    src: target/smb.conf.j2
+    src: smb.conf.j2
     dest: "/etc/samba/smb.conf"
     mode: '0644'
 
@@ -133,7 +133,7 @@
 
 - name: Deploy root containers configuration files
   ansible.builtin.template:
-    src: "target/{{ item.src }}"
+    src: "{{ item.src }}"
     dest: "{{ item.dest }}"
     mode: "{{ item.mode | default('0664') }}"
     owner: "root"
@@ -194,7 +194,7 @@
 
 - name: Deploy root Quadlet files
   ansible.builtin.template:
-    src: "target/{{ item.src }}"
+    src: "{{ item.src }}"
     dest: "/etc/containers/systemd/{{ item.dest }}"
   loop:
     #- { src: 'samba.container.j2', dest: 'samba.container' }

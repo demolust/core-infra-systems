@@ -335,7 +335,7 @@
 
 - name: Deploy application initialization files
   ansible.builtin.template:
-    src: "target/{{ item.name }}"
+    src: "{{ item.name }}"
     dest: "{{ item.dest }}"
     owner: "{{ item.owner }}"
     group: "{{ item.group }}"
@@ -365,7 +365,7 @@
 
 - name: Deploy gitops_aliases.sh to profile.d
   ansible.builtin.template:
-    src: target/gitops_aliases.sh.j2
+    src: gitops_aliases.sh.j2
     dest: /etc/profile.d/gitops_aliases.sh
     owner: root
     group: root

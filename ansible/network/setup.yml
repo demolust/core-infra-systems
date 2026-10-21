@@ -16,7 +16,7 @@
       ansible.builtin.include_tasks: tasks/network_setup.yml
 
     - name: Base apps setup
-      ansible.builtin.include_tasks: tasks/container_setup.yml
+      ansible.builtin.include_tasks: tasks/container_apps_setup.yml
 
     - name: Fiewall setup
       ansible.builtin.include_tasks: tasks/firewall_setup.yml

@@ -31,7 +31,7 @@ RUNNER_ID=$(curl -s -X GET -H "Authorization: Bearer ${GH_PAT}" \
 
 if ! [ -z "$RUNNER_ID" ]; then
   echo "Found stale runner ID ${RUNNER_ID}, deleting from GitHub"
-  curl curl -s -X DELETE -H "Authorization: Bearer ${GH_PAT}" \
+  curl -s -X DELETE -H "Authorization: Bearer ${GH_PAT}" \
     -H "Accept: application/vnd.github+json" \
     -H "X-GitHub-Api-Version: ${GH_API_VER}" \
     "${API_URL}/${RUNNER_ID}"

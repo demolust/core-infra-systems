@@ -5,7 +5,7 @@
 
 - name: "Deploy {{ app.name }} Quadlet Templates"
   ansible.builtin.template:
-    src: "target/{{ item.src }}"
+    src: "{{ item.src }}"
     dest: "/var/lib/{{ app.user }}/.config/containers/systemd/{{ item.dest }}"
     owner: "{{ app.user }}"
     group: "{{ app.group }}"

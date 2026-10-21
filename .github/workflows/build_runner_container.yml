@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - 'bootstrap/runner_container/Dockerfile'
+      - 'gitops/runner_container/**'
       - '.github/workflows/build_runner_container.yml'
 
 env:
@@ -49,9 +49,9 @@ jobs:
       - name: Build Verification Image Locally (No Push)
         uses: docker/build-push-action@v6
         with:
-          context: ./bootstrap/runner_container
+          context: ./gitops/runner_container
           platforms: linux/amd64
-          file: ./bootstrap/runner_container/Dockerfile
+          file: ./gitops/runner_container/Dockerfile
           push: false
           load: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -73,9 +73,9 @@ jobs:
         if: success()
         uses: docker/build-push-action@v6
         with:
-          context: ./bootstrap/runner_container
+          context: ./gitops/runner_container
           platforms: linux/amd64,linux/arm64
-          file: ./bootstrap/runner_container/Dockerfile
+          file: ./gitops/runner_container/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

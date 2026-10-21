@@ -1,0 +1,37 @@
+---
+- name: Discover network node
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../boostrap/host_vars/localhost.yml
+    - ../../boostrap/group_vars/all.yml
+  vars:
+    # Skip discovery with TARGET_HOST_IP or -e "target_host_ip=1.2.3.4".
+    manual_target_host_ip: "{{ target_host_ip | default(lookup('env', 'TARGET_HOST_IP')) | default('', true) }}"
+  tasks:
+    - name: Discover target IP via ARP cache
+      ansible.builtin.shell: |
+        ip neighbor show dev "{{ bootstrap_interface }}" | head -n 1 | awk '{print $1}'
+      register: discovered_ip_result
+      changed_when: false
+      when: manual_target_host_ip == ""
+
+    - name: Set target IP
+      ansible.builtin.set_fact:
+        discovered_target_ip: "{{ manual_target_host_ip if manual_target_host_ip != '' else discovered_ip_result.stdout }}"
+
+    - name: Require a target IP
+      ansible.builtin.fail:
+        msg: "Could not discover the target IP; provide TARGET_HOST_IP."
+      when: discovered_target_ip == ""
+
+    - name: Register target in temporary inventory
+      ansible.builtin.add_host:
+        name: "{{ discovered_target_ip }}"
+        groups: network_nodes
+        ansible_user: "{{ admin_username }}"
+        ansible_ssh_extra_args: '-o StrictHostKeyChecking=no'
+
+- name: Configure network node
+  ansible.builtin.import_playbook: ../setup.yml
