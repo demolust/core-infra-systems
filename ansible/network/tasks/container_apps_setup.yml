@@ -21,6 +21,13 @@
     state: directory
     mode: '0755'
 
+- name: Validate PXE server reservation
+  ansible.builtin.assert:
+    that:
+      - pxe_server_ref | length > 0
+      - pxe_server_matches | length == 1
+    fail_msg: "TARGET_PXE_SERVER_REF must match exactly one reservation ref_name."
+
 - name: Create container directory structure
   ansible.builtin.file:
     path: "{{ base_dir }}/{{ item }}"

@@ -141,7 +141,7 @@
   loop:
     #- { src: 'smb.conf.j2', dest: "{{ samba_conf_dir }}/smb.conf" }
     #- { src: 'samba_entrypoint.sh.j2', dest: "{{ samba_conf_dir }}/entrypoint.sh", mode: "0775" }
-    - { src: 'dnsmasq.conf.j2', dest: "{{ pxe_base_dir }}/configs/dnsmasq.conf" }
+    #- { src: 'dnsmasq.conf.j2', dest: "{{ pxe_base_dir }}/configs/dnsmasq.conf" }
     - { src: 'nginx.conf.j2',   dest: "{{ pxe_base_dir }}/configs/nginx.conf" }
     - { src: 'tftpd.map.j2',    dest: "{{ pxe_base_dir }}/configs/tftpd.map" }
     - { src: 'grub.cfg.j2',     dest: "{{ pxe_base_dir }}/tftp/grub.cfg" }
@@ -199,7 +199,7 @@
   loop:
     #- { src: 'samba.container.j2', dest: 'samba.container' }
     - { src: 'pxe.pod.j2', dest: 'pxe.pod' }
-    - { src: 'pxe_dnsmasq.container.j2', dest: 'pxe_dnsmasq.container' }
+    #- { src: 'pxe_dnsmasq.container.j2', dest: 'pxe_dnsmasq.container' }
     - { src: 'pxe_tftp.container.j2', dest: 'pxe_tftp.container' }
     - { src: 'pxe_nginx.container.j2', dest: 'pxe_nginx.container' }
   register: quadlet_results

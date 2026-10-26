@@ -27,6 +27,33 @@ dhcp-option=tag:vlan{{ vlan.id }},option:router,{{ vlan.ipv4 }}
 dhcp-option=tag:vlan{{ vlan.id }},option:dns-server,{{ vlan.ipv4 }}
 
 {% endfor %}
+
+# PXE boot instructions, boot files are served by the control node.
+# Identify Architectures
+dhcp-match=set:pxe_x86_64,option:client-arch,7
+dhcp-match=set:pxe_x86_64,option:client-arch,9
+dhcp-match=set:pxe_aarch64,option:client-arch,11
+# Identify if the requester is iPXE
+#dhcp-match=set:is_ipxe, 175
+dhcp-userclass=set:is_ipxe,iPXE
+
+# If Secure Boot is ON, point to signed ipxe
+#dhcp-boot=tag:!is_ipxe,tag:pxe_x86_64,/ipxeboot/x86_64-sb/ipxe-shim.efi,,{{ pxe_server_ip }}
+#dhcp-boot=tag:!is_ipxe,tag:pxe_aarch64,/ipxeboot/arm64-sb/ipxe-shim.efi,,{{ pxe_server_ip }}
+# If Secure Boot is ON, point to signed SHIM, not GRUB
+#dhcp-boot=tag:!is_ipxe,tag:pxe_x86_64,/x86_64/shimx64.efi,,{{ pxe_server_ip }}
+#dhcp-boot=tag:!is_ipxe,tag:pxe_aarch64,/aarch64/shimaa64.efi,,{{ pxe_server_ip }}
+
+# If Secure Boot is OFF, always point to ipxe
+# Initial UEFI PXE boot: serve the iPXE binary
+dhcp-boot=tag:!is_ipxe,tag:pxe_x86_64,/x86_64/ipxe.efi,,{{ pxe_server_ip }}
+dhcp-boot=tag:!is_ipxe,tag:pxe_aarch64,/aarch64/ipxe.efi,,{{ pxe_server_ip }}
+# Second boot stage (iPXE makes a request): serve the script via HTTP or TFTP
+# HTTP
+#dhcp-boot=tag:is_ipxe,http://{{ pxe_server_ip }}/ipxe/configs/boot.ipxe
+# TFTP
+dhcp-boot=tag:is_ipxe,/ipxe/configs/boot.ipxe,,{{ pxe_server_ip }}
+
 # Force a safe MTU
 dhcp-option=26,1460
 

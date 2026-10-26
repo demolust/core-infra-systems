@@ -23,6 +23,7 @@ goto vars_complete
 :vars_complete
 # Global Variables
 set base_url http://{{ remote_server_ip }}:{{ pxe_http_port }}
+chain ${base_url}/ipxe/configs/${netX/mac:hexhyp}.ipxe || goto start
 
 :start
 menu Generic iPXE Boot Menu [Arch: ${arch}]

@@ -28,6 +28,17 @@ local_fwd_dns_port: "1053"
 # An unset/empty variable produces no reservations.
 dhcp_reservations: "{{ lookup('env', 'TARGET_DHCP_RESERVATIONS_JSON') | default('[]', true) | ansible.builtin.from_json }}"
 
+# PXE config on dnsmaq
+pxe_server_ref: "{{ lookup('env', 'TARGET_PXE_SERVER_REF') }}"
+pxe_server_matches: >-
+  {{
+    dhcp_reservations
+    | selectattr('ref_name', 'defined')
+    | selectattr('ref_name', 'equalto', pxe_server_ref)
+    | list
+  }}
+pxe_server_ip: "{{ pxe_server_matches[0].ipv4 }}"
+
 # Adguard
 adguard_admin: "{{ lookup('env', 'TARGET_ADGUARD_ADMIN') | default('', true) }}"
 adguard_admin_pass: "{{ lookup('env', 'TARGET_ADGUARD_ADMIN_PASS') | default('', true) }}"
