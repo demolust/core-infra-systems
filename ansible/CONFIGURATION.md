@@ -1,6 +1,6 @@
 # Infrastructure configuration and design
 
-This explains the purpose of the configuration, how the less obvious settings work, and how the services fit together. Every template in `control`, `network`, and `boostrap` is covered below. Package installation and SSH hardening are summarized; networking, identity mapping, permissions, and provisioning receive more detail.
+This explains the purpose of the configuration, how the less obvious settings work, and how the services fit together. The deployed configuration in `control`, `network`, and `boostrap` is described below. Package installation and SSH hardening are summarized; networking, identity mapping, permissions, and provisioning receive more detail.
 
 Addresses and ports describe repository defaults. Software versions are selected in the linked variables, image definitions, and build tasks rather than repeated here. Hardware details and the Samba deployment decision include the operator's context.
 
@@ -92,30 +92,37 @@ For migration, inform-address recovery, and switch-side tagged/access port setti
 
 See [OpenBao configuration](https://openbao.org/docs/configuration/) for listener, storage, advertised-address, and memory-locking behavior. Image tags in the application templates select their releases.
 
-### Permanent PXE: proxy DHCP and a shared pod
+### Permanent PXE: network-node DHCP and control-node TFTP/HTTP
 
-This supplies network boot to a LAN that already has DHCP. It does not replace the router's address allocation.
+The network node's DHCP service supplies both VLAN leases and PXE boot instructions. The control node serves boot files over TFTP and HTTP. Keeping DHCP on the router's VLAN interfaces lets clients receive boot information in their own VLAN, then reach the control node for file transfers.
+
+The control playbook deploys TFTP and HTTP containers in a root-owned, host-networked PXE pod.
 
 | Template | Configuration and purpose |
 | --- | --- |
 | [pxe.pod.j2](control/templates/pxe.pod.j2) | Defines a root-owned host-networked pod, activated with the host's multi-user target. Its containers use host interfaces and ports directly. The pod groups their lifecycle; it does not route traffic between VLANs. |
-| [pxe_dnsmasq.container.j2](control/templates/pxe_dnsmasq.container.j2) | Supplies proxy-PXE replies using the mounted dnsmasq config and networking capabilities explained below. |
 | [pxe_tftp.container.j2](control/templates/pxe_tftp.container.j2) | Installs tftp-hpa at startup and runs it in the foreground on UDP 69. `--secure` restricts the served filesystem root; `--map-file` enables firmware filename rewrites. Syslog goes to container output. |
 | [pxe_nginx.container.j2](control/templates/pxe_nginx.container.j2) | Serves the read-only boot-content tree over HTTP. |
 
-The component units use `After=pxe-pod.service` for order, `BindsTo=` to stop when the pod disappears, and `PartOf=` to propagate pod stop/restart operations. This keeps TFTP, HTTP, and proxy-DHCP tied to the same provisioning service. See [Pod Quadlets](https://docs.podman.io/en/latest/markdown/podman-pod.unit.5.html) and [systemd dependency semantics](https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html).
+The component units use `After=pxe-pod.service` for order, `BindsTo=` to stop when the pod disappears, and `PartOf=` to propagate pod stop/restart operations. This keeps the TFTP and HTTP containers tied to the same provisioning service; network-node DHCP has a separate lifecycle. See [Pod Quadlets](https://docs.podman.io/en/latest/markdown/podman-pod.unit.5.html) and [systemd dependency semantics](https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html).
 
 | Template | Less obvious boot configuration |
 | --- | --- |
-| [dnsmasq.conf.j2](control/templates/dnsmasq.conf.j2) | Binds the selected PXE interface dynamically; `port=0` disables DNS. `dhcp-range=...,proxy,...` supplies boot information while the existing DHCP server leases addresses. `pxe-service` advertises architecture-specific PXE boot services; `pxe-prompt="Network Booting...",1` sets the prompt and one-second selection timeout. Retain both in this setup: this proxy path relies on the PXE service/menu information and was observed not to work without it. The manual allows an omitted prompt in some menu cases; this is a deployment requirement rather than a universal claim about every PXE client. |
-| [boot.ipxe.j2](control/templates/boot.ipxe.j2) | Presents rescue/shell/reboot options and gets network configuration only if needed. It calculates an architecture-directory mapping, but rescue URLs still use `${arch}` instead of `${arch_path}`; the arm64/aarch64 discrepancy remains a TODO. |
-| [grub.cfg.j2](control/templates/grub.cfg.j2) | Loads video/filesystem/compression support, preserves the framebuffer, and offers rescue kernel/initrd loading or iPXE chainloading. It maps the GRUB CPU name to the content directory. Its presence does not enable the commented-out Secure Boot DHCP entries. |
+| [boot.ipxe.j2](control/templates/boot.ipxe.j2) | Gets network configuration only if needed and sets `base_url` to `http://{{ remote_server_ip }}:{{ pxe_http_port }}`. First attempts to chain `${base_url}/ipxe/configs/${netX/mac:hexhyp}.ipxe`; a failed chain falls back to the generic rescue/shell/reboot menu. It calculates an architecture-directory mapping, but rescue URLs still use `${arch}` instead of `${arch_path}`; the arm64/aarch64 discrepancy remains a TODO. |
+| [grub.cfg.j2](control/templates/grub.cfg.j2) | Loads video/filesystem/compression support, preserves the framebuffer, and offers rescue kernel/initrd loading or iPXE chainloading. It maps the GRUB CPU name to the content directory. The DHCP boot path uses unsigned iPXE and requires Secure Boot to be disabled. |
 | [nginx.conf.j2](control/templates/nginx.conf.j2) | Serves the mounted web root, permits directory listings, uses `sendfile` for kernel-assisted file transfer, and `tcp_nopush` for packet batching with sendfile. The fallback content type is `application/octet-stream`; this describes payload type rather than modifying boot binaries. |
 | [tftpd.map.j2](control/templates/tftpd.map.j2) | Normalizes backslashes and rewrites firmware-specific requests, including stripped paths and an Onboard pattern, to files in the architecture directories. Includes revocation-filename-to-shim substitutions; filename substitution does not itself establish a valid Secure Boot verification chain. |
 
-The first PXE stage matches client architecture and sends `ipxe.efi`. When iPXE requests boot information, its `iPXE` user class selects the script instead of downloading iPXE again. Rescue assets must already exist: the playbook creates directories and downloads iPXE binaries but does not populate rescue kernels/initrds.
+The boot sequence is:
 
-See [dnsmasq PXE/proxy-DHCP options](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html), [iPXE kernel loading](https://ipxe.org/cmd/kernel), [tftp-hpa remapping](https://manpages.debian.org/testing/tftpd-hpa/in.tftpd.8.en.html), and [Nginx transfer directives](https://nginx.org/en/docs/http/ngx_http_core_module.html).
+1. Network-node dnsmasq leases an address and matches UEFI client architecture: values 7/9 select `/x86_64/ipxe.efi`; value 11 selects `/aarch64/ipxe.efi`. Both point to the control node's reservation address.
+2. The client downloads that binary from control-node TFTP. When iPXE requests boot information, its `iPXE` user class selects `/ipxe/configs/boot.ipxe` from the same TFTP server, avoiding another binary download.
+3. The generic script tries a MAC-specific script over HTTP, using a hyphen-separated MAC filename such as `02-00-00-00-10-01.ipxe`. Place these scripts under `{{ pxe_base_dir }}/www/ipxe/configs/`; the playbook creates the directory but does not generate per-device scripts.
+4. If chaining fails, the generic menu offers rescue, shell, and reboot. Rescue assets must already exist: the playbook downloads iPXE binaries but does not populate rescue kernels/initrds.
+
+Clients need routed access to control-node TFTP and HTTP across VLANs. Keep the selected reservation address consistent with the control node's actual address and `remote_server_ip`, which supplies the HTTP base URL.
+
+See [dnsmasq DHCP boot options](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html), [iPXE kernel loading](https://ipxe.org/cmd/kernel), [tftp-hpa remapping](https://manpages.debian.org/testing/tftpd-hpa/in.tftpd.8.en.html), and [Nginx transfer directives](https://nginx.org/en/docs/http/ngx_http_core_module.html).
 
 ### GitOps tooling and the GitHub-built runner
 
@@ -192,15 +199,17 @@ See [kernel IP forwarding](https://docs.kernel.org/networking/ip-sysctl.html), [
 
 ### DHCP and DNS: what clients receive and where queries go
 
-The router's dnsmasq leases addresses; AdGuard is the client-facing DNS resolver/filter. They cooperate without competing for port 53.
+The router's dnsmasq leases addresses and advertises the control node's PXE boot files; AdGuard is the client-facing DNS resolver/filter. They cooperate without competing for port 53.
 
 | Template | Configuration and purpose |
 | --- | --- |
-| [dnsmasq.conf.j2](network/templates/dnsmasq.conf.j2) | Listens on loopback and the generated VLAN interfaces. Per-VLAN `dhcp-range=set:vlan<id>,...` both selects a pool and sets a tag; matching `dhcp-option=tag:vlan<id>,...` sends that pool's gateway and DNS address. Leases last 24 hours. Advertises the lab search domain and MTU 1460. `bind-dynamic` accommodates interface/address changes. |
+| [dnsmasq.conf.j2](network/templates/dnsmasq.conf.j2) | Listens on loopback and the generated VLAN interfaces. Per-VLAN `dhcp-range=set:vlan<id>,...` both selects a pool and sets a tag; matching `dhcp-option=tag:vlan<id>,...` sends that pool's gateway and DNS address. Leases last 24 hours. Architecture and iPXE user-class tags select control-node boot files through `dhcp-boot`. Advertises the lab search domain and MTU 1460. `bind-dynamic` accommodates interface/address changes. |
 | [dhcp-hosts.conf.j2](network/templates/dhcp-hosts.conf.j2) | Converts reservations from `TARGET_DHCP_RESERVATIONS_JSON` into MAC/address entries with optional hostnames/comments. A fixed lease makes a device's address predictable; supplying DNS through DHCP does not independently create arbitrary DNS records. |
 | [dnsmasq.container.j2](network/templates/dnsmasq.container.j2) | Runs with host networking to reach VLAN interfaces and DHCP broadcasts, mounts configuration read-only, and persists leases under `/data/state/dnsmasq`. Adds the networking capabilities described below. |
 | [AdGuardHome.yaml.j2](network/templates/AdGuardHome.yaml.j2) | Binds DNS on router/VLAN/VPN/loopback addresses at port 53 and restricts allowed clients. Uses encrypted public upstreams and a lab-domain route to local dnsmasq. Configures the UI account, filters, cache, and schema expected by the application. |
 | [adguard.container.j2](network/templates/adguard.container.j2) | Uses host networking for those host IP bindings and persists both AdGuard configuration and work data. |
+
+**PXE server selection.** In [network/.env.example](network/.env.example), `TARGET_PXE_SERVER_REF` selects a reservation from `TARGET_DHCP_RESERVATIONS_JSON` by an exact, case-sensitive `ref_name` match. For example, `TARGET_PXE_SERVER_REF='Control node'` selects the example reservation with `ref_name: "Control node"` and IPv4 `172.16.10.10`. [Network variables](network/group_vars/network_nodes.yml) derive `pxe_server_ip` from that reservation's `ipv4`. [container_apps_setup.yml](network/tasks/container_apps_setup.yml) requires a nonempty reference and exactly one match before rendering configuration; unset, missing, or duplicate matches fail validation. This reference is required by the current network setup even though the reservation list itself defaults to empty.
 
 A VLAN 20 client's DHCP exchange arrives through `lan0.20`. It receives an address from that VLAN's pool, a /24 mask, gateway `172.16.20.1`, and DNS server `172.16.20.1`. DHCP configures the client's network; later DNS queries are a separate exchange.
 
@@ -217,7 +226,7 @@ AdGuard's bootstrap resolvers resolve the public upstream servers' hostnames. Pa
 
 ### Why dnsmasq has extra Linux capabilities
 
-Both network dnsmasq and control PXE dnsmasq use `AddCapability=NET_ADMIN NET_BIND_SERVICE NET_RAW`. Linux capabilities split privileged operations into specific permissions:
+The network dnsmasq container uses `AddCapability=NET_ADMIN NET_BIND_SERVICE NET_RAW`. Linux capabilities split privileged operations into specific permissions:
 
 | Capability | Why this DHCP/PXE service is given it |
 | --- | --- |
@@ -225,7 +234,7 @@ Both network dnsmasq and control PXE dnsmasq use `AddCapability=NET_ADMIN NET_BI
 | `NET_RAW` | Permits raw/packet sockets, used by DHCP's low-level Ethernet handling and address-conflict checks. |
 | `NET_ADMIN` | Allows network administration operations; dnsmasq's DHCP paths can need operations such as neighbor/ARP management. This is broader than ordinary UDP socket access. |
 
-These services use the host network namespace, so network privileges apply in that shared namespace. Adding capabilities allows operations; it does not itself enable forwarding or install the router's firewall policies. The dedicated routing/sysctl tasks do that. The separate TFTP container only explicitly adds low-port binding capability.
+The network dnsmasq container uses the host network namespace, so network privileges apply in that shared namespace. Adding capabilities allows operations; it does not itself enable forwarding or install the router's firewall policies. The dedicated routing/sysctl tasks do that. The separate TFTP container only explicitly adds low-port binding capability.
 
 See [Linux capabilities](https://man7.org/linux/man-pages/man7/capabilities.7.html) and [Quadlet AddCapability](https://docs.podman.io/en/latest/markdown/podman-container.unit.5.html).
 
@@ -241,7 +250,7 @@ VPN packets enter through the public UDP listener, emerge decrypted on `wg0`, an
 
 ## Temporary workstation provisioning: boostrap
 
-[boostrap/bootstrap_setup.yml](boostrap/bootstrap_setup.yml) turns the workstation into a temporary installer server. Its spelling is the actual directory name. This is a separate use of DHCP from both the router's ongoing VLAN leases and control's proxy-PXE service.
+[boostrap/bootstrap_setup.yml](boostrap/bootstrap_setup.yml) turns the workstation into a temporary installer server. Its spelling is the actual directory name. This temporary DHCP service is separate from the router's ongoing VLAN leases and PXE boot instructions; it serves the directly connected target while the control node's permanent TFTP/HTTP service remains a separate deployment.
 
 The host receives a temporary bootstrap address, enables IPv4 forwarding/NAT for the directly connected target, and opens provisioning ports. `net.ipv4.ip_unprivileged_port_start=0` removes the low-port restriction in that network namespace; it does not make processes root. The actual PXE containers are nevertheless launched with privilege escalation and `privileged: true`. See [kernel privileged-port threshold](https://docs.kernel.org/networking/ip-sysctl.html).
 
