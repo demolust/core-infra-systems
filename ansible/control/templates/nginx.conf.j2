@@ -1,9 +1,19 @@
 # PXE containerized nginx.conf - Managed by Ansible/Jinja2
+
+# Enable JavaScript request handlers for serving Proxmox installation answers.
+load_module /usr/lib/nginx/modules/ngx_http_js_module.so;
+
 events {
-    worker_connections 1024;
+  worker_connections 1024;
 }
 
 http {
+  # Use QuickJS needed per docs
+  js_engine qjs;
+
+  # Import the handler that selects Proxmox answer files by machine MAC.
+  js_import proxmox_setup from /usr/share/nginx/scripts/proxmox_setup.js;
+
   server {
     listen {{ pxe_http_port }} default_server;
     server_name _;
@@ -18,5 +28,15 @@ http {
       # Critical for PXE: prevents the browser/client from trying to "render" the boot files.
       default_type application/octet-stream;
     }
+
+
+    location = /proxmox/answer {
+      # Settings that control the incoming POST body
+      client_max_body_size 256k;
+      client_body_buffer_size 256k;
+
+      js_content proxmox_setup.answer;
+    }
+
   }
 }

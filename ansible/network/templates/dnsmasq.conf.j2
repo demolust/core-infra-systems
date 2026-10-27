@@ -50,9 +50,9 @@ dhcp-boot=tag:!is_ipxe,tag:pxe_x86_64,/x86_64/ipxe.efi,,{{ pxe_server_ip }}
 dhcp-boot=tag:!is_ipxe,tag:pxe_aarch64,/aarch64/ipxe.efi,,{{ pxe_server_ip }}
 # Second boot stage (iPXE makes a request): serve the script via HTTP or TFTP
 # HTTP
-#dhcp-boot=tag:is_ipxe,http://{{ pxe_server_ip }}/ipxe/configs/boot.ipxe
+#dhcp-boot=tag:is_ipxe,http://{{ pxe_server_ip }}/configs/ipxe/boot.ipxe
 # TFTP
-dhcp-boot=tag:is_ipxe,/ipxe/configs/boot.ipxe,,{{ pxe_server_ip }}
+dhcp-boot=tag:is_ipxe,/configs/ipxe/boot.ipxe,,{{ pxe_server_ip }}
 
 # Force a safe MTU
 dhcp-option=26,1460

@@ -1,0 +1,84 @@
+import fs from 'fs';
+
+const CONFIG_DIR = '/usr/share/nginx/html/configs/proxmox';
+
+function answer(r) {
+  r.headersOut['Content-Type'] = 'text/plain';
+  r.headersOut['Cache-Control'] = 'no-store';
+
+  if (r.method !== 'POST') {
+    r.headersOut['Allow'] = 'POST';
+    r.return(405, 'Use POST\n');
+    return;
+  }
+
+  let payload;
+
+  try {
+    payload = JSON.parse(r.requestText);
+  } catch (e) {
+    r.return(400, 'Invalid JSON request\n');
+    return;
+  }
+
+  // Accept system information directly or inside a sysinfo object
+  const info = payload && (payload.sysinfo || payload);
+  const interfaces = info &&
+    (info.network_interfaces || info['network-interfaces']);
+
+  if (!Array.isArray(interfaces)) {
+    r.return(400, 'Missing network interface information\n');
+    return;
+  }
+
+  const matches = [];
+  const seen = {};
+
+  for (const nic of interfaces) {
+    if (!nic || typeof nic.mac !== 'string') {
+      continue;
+    }
+
+    const mac = nic.mac.toLowerCase();
+
+    if (!/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(mac)) {
+      continue;
+    }
+
+    const filename = mac.replace(/:/g, '-') + '.toml';
+
+    if (seen[filename]) {
+      continue;
+    }
+    seen[filename] = true;
+
+    try {
+      const content = fs.readFileSync(
+        CONFIG_DIR + '/' + filename, 'utf8'
+      );
+      matches.push({ filename, content });
+    } catch (e) {
+      if (e.code !== 'ENOENT') {
+        r.error('Cannot read Proxmox answer: ' + filename);
+        r.return(500, 'Cannot read answer file\n');
+        return;
+      }
+    }
+
+  }
+
+  if (matches.length === 0) {
+    r.return(404, 'No answer file matches this machine\n');
+    return;
+  }
+
+  if (matches.length > 1) {
+    r.return(409, 'Multiple answer files match this machine\n');
+    return;
+  }
+
+  r.headersOut['Content-Type'] = 'application/toml';
+  r.return(200, matches[0].content);
+}
+
+export default { answer };

@@ -114,12 +114,17 @@
     - "configs"
     - "isos"
     - "images"
-    - "tftp/ipxe/configs"
+    - "tftp/configs/ipxe"
+    - "tftp/configs/grub"
     - "tftp/x86_64/rescue"
     - "tftp/aarch64/rescue"
-    - "www/ipxe/configs"
+    - "scripts/nginx"
     - "www/x86_64/rescue"
     - "www/aarch64/rescue"
+    - "www/x86_64/proxmox"
+    - "www/aarch64/proxmox"
+    - "www/configs/proxmox"
+    - "www/configs/ipxe"
 
 #- name: Sync host identity files for Samba container
 #  ansible.builtin.copy:
@@ -142,11 +147,12 @@
     #- { src: 'smb.conf.j2', dest: "{{ samba_conf_dir }}/smb.conf" }
     #- { src: 'samba_entrypoint.sh.j2', dest: "{{ samba_conf_dir }}/entrypoint.sh", mode: "0775" }
     #- { src: 'dnsmasq.conf.j2', dest: "{{ pxe_base_dir }}/configs/dnsmasq.conf" }
+    - { src: 'proxmox_setup.js.j2',   dest: "{{ pxe_base_dir }}/scripts/nginx/proxmox_setup.js" }
     - { src: 'nginx.conf.j2',   dest: "{{ pxe_base_dir }}/configs/nginx.conf" }
     - { src: 'tftpd.map.j2',    dest: "{{ pxe_base_dir }}/configs/tftpd.map" }
-    - { src: 'grub.cfg.j2',     dest: "{{ pxe_base_dir }}/tftp/grub.cfg" }
-    - { src: 'boot.ipxe.j2',    dest: "{{ pxe_base_dir }}/tftp/ipxe/configs/boot.ipxe" }
-    - { src: 'boot.ipxe.j2',    dest: "{{ pxe_base_dir }}/www/ipxe/configs/boot.ipxe" }
+    - { src: 'grub.cfg.j2',     dest: "{{ pxe_base_dir }}/tftp/configs/grub/grub.cfg" }
+    - { src: 'boot.ipxe.j2',    dest: "{{ pxe_base_dir }}/tftp/configs/ipxe/boot.ipxe" }
+    - { src: 'boot.ipxe.j2',    dest: "{{ pxe_base_dir }}/www/configs/ipxe/boot.ipxe" }
   register: config_results
 
 #- name: Pre-stage Samba user database using matching container version

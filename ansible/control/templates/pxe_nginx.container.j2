@@ -10,6 +10,7 @@ ContainerName=pxe_nginx
 Image=docker.io/library/nginx:alpine
 Volume={{ pxe_base_dir }}/configs/nginx.conf:/etc/nginx/nginx.conf:ro,Z
 Volume={{ pxe_base_dir }}/www:/usr/share/nginx/html:ro,Z
+Volume={{ pxe_base_dir }}/scripts/nginx:/usr/share/nginx/scripts:ro,Z
 Pod=pxe.pod
 
 [Service]
