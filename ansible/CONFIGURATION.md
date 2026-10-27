@@ -102,27 +102,45 @@ The control playbook deploys TFTP and HTTP containers in a root-owned, host-netw
 | --- | --- |
 | [pxe.pod.j2](control/templates/pxe.pod.j2) | Defines a root-owned host-networked pod, activated with the host's multi-user target. Its containers use host interfaces and ports directly. The pod groups their lifecycle; it does not route traffic between VLANs. |
 | [pxe_tftp.container.j2](control/templates/pxe_tftp.container.j2) | Installs tftp-hpa at startup and runs it in the foreground on UDP 69. `--secure` restricts the served filesystem root; `--map-file` enables firmware filename rewrites. Syslog goes to container output. |
-| [pxe_nginx.container.j2](control/templates/pxe_nginx.container.j2) | Serves the read-only boot-content tree over HTTP. |
+| [pxe_nginx.container.j2](control/templates/pxe_nginx.container.j2) | Mounts the host web-content tree and JavaScript handlers read-only, serving boot files and Proxmox installation answers over HTTP. |
 
 The component units use `After=pxe-pod.service` for order, `BindsTo=` to stop when the pod disappears, and `PartOf=` to propagate pod stop/restart operations. This keeps the TFTP and HTTP containers tied to the same provisioning service; network-node DHCP has a separate lifecycle. See [Pod Quadlets](https://docs.podman.io/en/latest/markdown/podman-pod.unit.5.html) and [systemd dependency semantics](https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html).
 
 | Template | Less obvious boot configuration |
 | --- | --- |
-| [boot.ipxe.j2](control/templates/boot.ipxe.j2) | Gets network configuration only if needed and sets `base_url` to `http://{{ remote_server_ip }}:{{ pxe_http_port }}`. First attempts to chain `${base_url}/ipxe/configs/${netX/mac:hexhyp}.ipxe`; a failed chain falls back to the generic rescue/shell/reboot menu. It calculates an architecture-directory mapping, but rescue URLs still use `${arch}` instead of `${arch_path}`; the arm64/aarch64 discrepancy remains a TODO. |
-| [grub.cfg.j2](control/templates/grub.cfg.j2) | Loads video/filesystem/compression support, preserves the framebuffer, and offers rescue kernel/initrd loading or iPXE chainloading. It maps the GRUB CPU name to the content directory. The DHCP boot path uses unsigned iPXE and requires Secure Boot to be disabled. |
-| [nginx.conf.j2](control/templates/nginx.conf.j2) | Serves the mounted web root, permits directory listings, uses `sendfile` for kernel-assisted file transfer, and `tcp_nopush` for packet batching with sendfile. The fallback content type is `application/octet-stream`; this describes payload type rather than modifying boot binaries. |
-| [tftpd.map.j2](control/templates/tftpd.map.j2) | Normalizes backslashes and rewrites firmware-specific requests, including stripped paths and an Onboard pattern, to files in the architecture directories. Includes revocation-filename-to-shim substitutions; filename substitution does not itself establish a valid Secure Boot verification chain. |
+| [boot.ipxe.j2](control/templates/boot.ipxe.j2) | Gets network configuration only if needed and sets `base_url` to `http://{{ remote_server_ip }}:{{ pxe_http_port }}`. First attempts to chain `${base_url}/configs/ipxe/${netX/mac:hexhyp}.ipxe`; a failed chain falls back to the generic rescue/shell/reboot menu. It calculates an architecture-directory mapping, but rescue URLs still use `${arch}` instead of `${arch_path}`; the arm64/aarch64 discrepancy remains a TODO. |
+| [grub.cfg.j2](control/templates/grub.cfg.j2) | Deployed to `{{ pxe_base_dir }}/tftp/configs/grub/grub.cfg`. Loads video/filesystem/compression support, preserves the framebuffer, and offers rescue kernel/initrd loading or iPXE chainloading. It maps the GRUB CPU name to the content directory. The DHCP boot path uses unsigned iPXE and requires Secure Boot to be disabled. |
+| [nginx.conf.j2](control/templates/nginx.conf.j2) | Serves the mounted web root, permits directory listings, uses `sendfile` for kernel-assisted file transfer, and `tcp_nopush` for packet batching with sendfile. The fallback content type is `application/octet-stream`. Loads the Nginx JavaScript module, selects QuickJS with `js_engine qjs`, and routes the exact path `/proxmox/answer` to `proxmox_setup.answer`, with a 256 KiB request-body limit and buffer. |
+| [proxmox_setup.js.j2](control/templates/proxmox_setup.js.j2) | Selects an existing TOML answer file using MAC addresses from an installer JSON POST. Lowercases valid colon-separated MACs, converts them to hyphen-separated filenames, deduplicates candidates, and requires exactly one matching file. |
+| [tftpd.map.j2](control/templates/tftpd.map.j2) | Normalizes backslashes and rewrites firmware-specific requests, including stripped paths and an Onboard pattern, to files in the architecture directories. Maps requests beginning with `grub.cfg` (with an optional leading slash, including per-client suffixes) to `configs/grub/grub.cfg`. Includes revocation-filename-to-shim substitutions; filename substitution does not itself establish a valid Secure Boot verification chain. |
 
 The boot sequence is:
 
 1. Network-node dnsmasq leases an address and matches UEFI client architecture: values 7/9 select `/x86_64/ipxe.efi`; value 11 selects `/aarch64/ipxe.efi`. Both point to the control node's reservation address.
-2. The client downloads that binary from control-node TFTP. When iPXE requests boot information, its `iPXE` user class selects `/ipxe/configs/boot.ipxe` from the same TFTP server, avoiding another binary download.
-3. The generic script tries a MAC-specific script over HTTP, using a hyphen-separated MAC filename such as `02-00-00-00-10-01.ipxe`. Place these scripts under `{{ pxe_base_dir }}/www/ipxe/configs/`; the playbook creates the directory but does not generate per-device scripts.
+2. The client downloads that binary from control-node TFTP. When iPXE requests boot information, its `iPXE` user class selects `/configs/ipxe/boot.ipxe` from the same TFTP server, avoiding another binary download.
+3. The generic script tries a MAC-specific script over HTTP, using a hyphen-separated MAC filename such as `02-00-00-00-10-01.ipxe`. Place these scripts under `{{ pxe_base_dir }}/www/configs/ipxe/`; the playbook creates the directory but does not generate per-device scripts.
 4. If chaining fails, the generic menu offers rescue, shell, and reboot. Rescue assets must already exist: the playbook downloads iPXE binaries but does not populate rescue kernels/initrds.
+
+For the alternative Secure Boot path, DHCP selects the architecture-specific shim executable, which starts GRUB. The TFTP mapping serves `{{ pxe_base_dir }}/tftp/configs/grub/grub.cfg` for matching GRUB configuration requests, preserving the filename requested by the existing EFI binary. Moving this configuration therefore requires no changes to the shim/iPXE boot paths in either the control-node or network-node dnsmasq template. Those Secure Boot DHCP alternatives remain commented out; the active path above uses unsigned iPXE. The separate `boostrap/` workflow retains its architecture-specific GRUB configuration layout.
 
 Clients need routed access to control-node TFTP and HTTP across VLANs. Keep the selected reservation address consistent with the control node's actual address and `remote_server_ip`, which supplies the HTTP base URL.
 
 See [dnsmasq DHCP boot options](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html), [iPXE kernel loading](https://ipxe.org/cmd/kernel), [tftp-hpa remapping](https://manpages.debian.org/testing/tftpd-hpa/in.tftpd.8.en.html), and [Nginx transfer directives](https://nginx.org/en/docs/http/ngx_http_core_module.html).
+
+#### Proxmox installation answer service
+
+[main_install.yml](control/tasks/main_install.yml) prepares the Proxmox content directories and deploys the answer handler. The Nginx container mounts the following host paths:
+
+| Host path | Container path | Purpose |
+| --- | --- | --- |
+| `{{ pxe_base_dir }}/www` | `/usr/share/nginx/html` | Boot assets and configuration files, including `configs/ipxe` and `configs/proxmox`. |
+| `{{ pxe_base_dir }}/scripts/nginx` | `/usr/share/nginx/scripts` | Contains the rendered `proxmox_setup.js` imported by Nginx. |
+
+Place per-machine answer files under `{{ pxe_base_dir }}/www/configs/proxmox/`, using lowercase, hyphen-separated MAC filenames such as `02-00-00-00-10-01.toml`. The handler reads this directory as `/usr/share/nginx/html/configs/proxmox` inside the container. Configure an installer that fetches answers over HTTP to POST to `http://{{ remote_server_ip }}:{{ pxe_http_port }}/proxmox/answer`.
+
+The handler accepts system information directly in the JSON body or inside `sysinfo`, with a `network_interfaces` or `network-interfaces` array containing `mac` fields. Exactly one existing answer file across the supplied interfaces returns HTTP 200 with `application/toml`; no match returns 404 and multiple distinct matches return 409. Invalid JSON or missing interface information returns 400, non-POST methods return 405, and file-read failures other than missing files return 500. Responses set `Cache-Control: no-store`.
+
+This prepares the answer service and the `www/x86_64/proxmox` and `www/aarch64/proxmox` asset directories. The playbook does not populate Proxmox boot assets, generate TOML answers, prepare installer media, or add a Proxmox entry to the generic iPXE menu. Supply the assets, answer files, and machine-specific iPXE scripts separately.
 
 ### GitOps tooling and the GitHub-built runner
 
