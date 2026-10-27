@@ -114,6 +114,7 @@
     - "configs"
     - "isos"
     - "images"
+    - "downloads"
     - "tftp/configs/ipxe"
     - "tftp/configs/grub"
     - "tftp/x86_64/rescue"

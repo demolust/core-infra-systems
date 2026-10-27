@@ -1,0 +1,169 @@
+---
+- name: Prepare ISO and PXE files for {{ proxmox_release.key }}
+  vars:
+    proxmox_arch: "{{ proxmox_release.key }}"
+    proxmox_selected_iso: "{{ proxmox_release.value }}"
+    proxmox_base_www_dir: "{{ pxe_base_dir }}/www"
+    proxmox_pxe_dir: "{{ proxmox_base_www_dir }}/{{ proxmox_arch }}/proxmox"
+    proxmox_answer_url: "http://{{ pxe_server_ip }}:{{ pxe_http_port }}/proxmox/answer"
+  block:
+    - name: Create temporary workspace for {{ proxmox_arch }}
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: "proxmox_{{ proxmox_arch }}_"
+      register: proxmox_iso_workspace
+
+    - name: Prepare installer files for {{ proxmox_arch }}
+      block:
+        - name: Create mount and extracted ISO directories
+          ansible.builtin.file:
+            path: "{{ proxmox_iso_workspace.path }}/{{ item }}"
+            state: directory
+            mode: "0755"
+          loop:
+            - mount
+            - tree
+
+        - name: Mount source ISO read-only
+          ansible.builtin.command:
+            argv:
+              - mount
+              - -o
+              - loop,ro
+              - "{{ proxmox_base_iso_dir }}/{{ proxmox_selected_iso.filename }}"
+              - "{{ proxmox_iso_workspace.path }}/mount"
+          register: proxmox_iso_mount
+          changed_when: true
+
+        - name: Copy all ISO contents including hidden files
+          ansible.builtin.command:
+            argv:
+              - cp
+              - -a
+              - "{{ proxmox_iso_workspace.path }}/mount/."
+              - "{{ proxmox_iso_workspace.path }}/tree/"
+          changed_when: true
+
+        - name: Make extracted ISO root writable
+          ansible.builtin.file:
+            path: "{{ proxmox_iso_workspace.path }}/tree"
+            mode: u+w
+
+        - name: Write automatic installer HTTP configuration
+          ansible.builtin.copy:
+            dest: "{{ proxmox_iso_workspace.path }}/tree/auto-installer-mode.toml"
+            content: |
+              mode = "http"
+
+              [http]
+              url = {{ proxmox_answer_url | to_json }}
+            mode: "0644"
+
+        - name: Create architecture PXE directory
+          ansible.builtin.file:
+            path: "{{ proxmox_pxe_dir }}"
+            state: directory
+            mode: "0755"
+
+        - name: Publish kernel and original initrd
+          ansible.builtin.copy:
+            src: "{{ proxmox_iso_workspace.path }}/tree/boot/{{ item.src }}"
+            dest: "{{ proxmox_pxe_dir }}/{{ item.dest }}"
+            remote_src: true
+            mode: "0644"
+          loop:
+            - src: linux26
+              dest: vmlinuz
+            - src: initrd.img
+              dest: initrd-original.img
+
+        - name: Detect original initrd compression
+          ansible.builtin.command:
+            argv:
+              - file
+              - --brief
+              - "{{ proxmox_pxe_dir }}/initrd-original.img"
+          register: proxmox_initrd_format
+          changed_when: false
+
+        - name: Require Zstandard or gzip initrd compression
+          ansible.builtin.assert:
+            that:
+              - >-
+                'zstandard compressed data' in (proxmox_initrd_format.stdout | lower) or
+                'gzip compressed data' in (proxmox_initrd_format.stdout | lower)
+            fail_msg: >-
+              Unsupported initrd compression for {{ proxmox_arch }}:
+              {{ proxmox_initrd_format.stdout }}.
+              Add a conversion for this compression before continuing.
+
+        - name: Convert Zstandard initrd to gzip
+          ansible.builtin.shell: |
+            set -o pipefail
+            zstd -dc -- {{ (proxmox_pxe_dir ~ '/initrd-original.img') | quote }} |
+              gzip -c > {{ (proxmox_iso_workspace.path ~ '/initrd.img') | quote }}
+          args:
+            executable: /bin/bash
+          when: "'zstandard compressed data' in (proxmox_initrd_format.stdout | lower)"
+          changed_when: true
+
+        - name: Copy existing gzip initrd unchanged
+          ansible.builtin.command:
+            argv:
+              - cp
+              - "{{ proxmox_pxe_dir }}/initrd-original.img"
+              - "{{ proxmox_iso_workspace.path }}/initrd.img"
+          when: "'gzip compressed data' in (proxmox_initrd_format.stdout | lower)"
+          changed_when: true
+
+        - name: Verify normalized gzip initrd integrity
+          ansible.builtin.command:
+            argv:
+              - gzip
+              - -t
+              - "{{ proxmox_iso_workspace.path }}/initrd.img"
+          changed_when: false
+
+        - name: Publish gzip initrd
+          ansible.builtin.copy:
+            src: "{{ proxmox_iso_workspace.path }}/initrd.img"
+            dest: "{{ proxmox_pxe_dir }}/initrd.img"
+            remote_src: true
+            mode: "0644"
+
+        - name: Rebuild installer ISO from extracted tree
+          ansible.builtin.command:
+            argv:
+              - mkisofs
+              - -R
+              - -J
+              - -iso-level
+              - "3"
+              - -o
+              - "{{ proxmox_iso_workspace.path }}/proxmox_installer.iso"
+              - "{{ proxmox_iso_workspace.path }}/tree/"
+          changed_when: true
+
+        - name: Publish rebuilt installer ISO
+          ansible.builtin.copy:
+            src: "{{ proxmox_iso_workspace.path }}/proxmox_installer.iso"
+            dest: "{{ proxmox_pxe_dir }}/proxmox_installer.iso"
+            remote_src: true
+            mode: "0644"
+
+      always:
+        - name: Unmount source ISO
+          ansible.builtin.command:
+            argv:
+              - umount
+              - "{{ proxmox_iso_workspace.path }}/mount"
+          when:
+            - proxmox_iso_mount is defined
+            - proxmox_iso_mount is succeeded
+            - (proxmox_iso_workspace.path ~ '/mount') in (proxmox_iso_mount.cmd | default([]))
+          changed_when: true
+
+        - name: Remove temporary ISO workspace
+          ansible.builtin.file:
+            path: "{{ proxmox_iso_workspace.path }}"
+            state: absent

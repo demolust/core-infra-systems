@@ -1,0 +1,95 @@
+---
+- name: Fetch ISO checksum manifest
+  ansible.builtin.uri:
+    url: "{{ proxmox_base_download_url }}/SHA256SUMS"
+    return_content: true
+  register: proxmox_manifest
+
+- name: Initialize release data
+  ansible.builtin.set_fact:
+    proxmox_candidates: {}
+    proxmox_latest: {}
+
+- name: Extract matching ISO releases per architecture
+  ansible.builtin.set_fact:
+    proxmox_candidates: >-
+      {{
+        proxmox_candidates | combine({
+          item.key: proxmox_manifest.content | regex_findall(
+            '(?m)^([0-9a-f]{64})\s+\*?(proxmox-ve_([0-9]+\.[0-9]+-[0-9]+)'
+            ~ (item.value.suffix | regex_escape)
+            ~ '\.iso)\r?$'
+          )
+        })
+      }}
+  loop: "{{ proxmox_data | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Ensure matching releases exist for each architecture
+  ansible.builtin.assert:
+    that:
+      - item.value | length > 0
+    fail_msg: "No Proxmox ISO found for {{ item.key }}"
+  loop: "{{ proxmox_candidates | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Select highest available version per architecture
+  ansible.builtin.set_fact:
+    proxmox_latest: >-
+      {{
+        proxmox_latest | combine({
+          item.0.key: {
+            'checksum': item.1[0],
+            'filename': item.1[1],
+            'version': item.1[2]
+          }
+        })
+      }}
+  loop: "{{ proxmox_candidates | dict2items | subelements('value') }}"
+  loop_control:
+    label: "{{ item.0.key }}: {{ item.1[2] }}"
+  when: >-
+    item.0.key not in proxmox_latest or
+    item.1[2] is version(
+      proxmox_latest[item.0.key].version, '>', version_type='loose'
+    )
+
+- name: Show selected ISOs
+  ansible.builtin.debug:
+    var: proxmox_latest
+
+- name: Download latest Proxmox ISO for each architecture
+  ansible.builtin.get_url:
+    url: "{{ proxmox_base_download_url }}/{{ item.value.filename }}"
+    dest: "{{ proxmox_base_iso_dir }}/{{ item.value.filename }}"
+    checksum: "sha256:{{ item.value.checksum }}"
+    mode: "0644"
+  loop: "{{ proxmox_latest | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}: {{ item.value.filename }}"
+
+- name: Calculate SHA-256 of downloaded ISOs
+  ansible.builtin.stat:
+    path: "{{ proxmox_base_iso_dir }}/{{ item.value.filename }}"
+    checksum_algorithm: sha256
+    get_checksum: true
+    get_mime: false
+    get_attributes: false
+  loop: "{{ proxmox_latest | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}: {{ item.value.filename }}"
+  register: proxmox_iso_checksums
+  when: not ansible_check_mode
+
+- name: Verify downloaded ISO checksums against manifest
+  ansible.builtin.assert:
+    that:
+      - item.stat.checksum | default('') == item.item.value.checksum
+    fail_msg: "SHA-256 verification failed for {{ item.item.value.filename }}"
+    success_msg: "SHA-256 verified for {{ item.item.value.filename }}"
+  loop: "{{ proxmox_iso_checksums.results }}"
+  loop_control:
+    label: "{{ item.item.key }}: {{ item.item.value.filename }}"
+  when: not ansible_check_mode

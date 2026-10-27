@@ -1,0 +1,47 @@
+---
+- name: Prepare Proxmox ISOs and PXE boot files
+  hosts: control_nodes
+  gather_facts: true
+
+  vars:
+    proxmox_data:
+      x86_64:
+        arch: x86_64
+        suffix: ""
+      aarch64:
+        arch: aarch64
+        suffix: "-arm64"
+
+    proxmox_base_iso_dir: "{{ pxe_base_dir }}/downloads"
+    proxmox_base_download_url: https://enterprise.proxmox.com/iso
+
+  tasks:
+    - name: Get Network Subnet and Mask
+      ansible.builtin.shell: "ip route show dev {{ pxe_interface }} | grep 'proto kernel' | awk '{print $1}'"
+      register: network_info
+      changed_when: false
+
+    - name: Get Network IP
+      ansible.builtin.shell: "ip -o -4 addr show {{ pxe_interface }} | awk '{print $4}'"
+      register: ip_info
+      changed_when: false
+
+    - name: Set facts for subnet and mask
+      ansible.builtin.set_fact:
+        remote_subnet: "{{ network_info.stdout.split('/')[0] }}"
+        remote_netmask: "{{ network_info.stdout.split('/')[1] }}"
+        pxe_server_ip: "{{ ip_info.stdout.split('/')[0] }}"
+
+    - name: Download standard ISO for each architecture
+      ansible.builtin.include_tasks: tasks/proxmox_download_isos.yml
+
+    - name: Prepare ISO and PXE files for each architecture
+      ansible.builtin.include_tasks:
+        file: tasks/proxmox_prepare_isos.yml
+        apply:
+          become: true
+      loop: "{{ proxmox_latest | dict2items }}"
+      loop_control:
+        loop_var: proxmox_release
+        label: "{{ proxmox_release.key }}: {{ proxmox_release.value.filename }}"
+      when: not ansible_check_mode
