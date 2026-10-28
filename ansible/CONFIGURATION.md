@@ -55,11 +55,11 @@ Quadlet turns `.container` and `.pod` files into systemd services during boot or
 
 Samba runs as host `smb`/`nmb` services. **Deployment experience:** the container kept crashing while handling larger files, authentication was complex to configure, and it could not recover even after trying Podman's init support. This is the reason for the native deployment in this setup.
 
+[samba_setup.yml](control/tasks/samba_setup.yml) installs the native Samba packages, renders `/etc/samba/smb.conf`, sets passwords with `smbpasswd`, and starts/enables the host services. `TARGET_ADMIN_SAMBA_PASSWORD` supplies the administrator's Samba password through `samba_users`; password tasks suppress Ansible logs. The former container templates, identity-copying entrypoint, private container directories, and NTLM-hash input have been removed.
+
 | Template | Configuration and purpose |
 | --- | --- |
 | [smb.conf.j2](control/templates/smb.conf.j2) | Configures local Samba authentication with `tdbsam`, home/profile/user shares, printing shares, and the custom data share. That share permits the administrator/`share` group to write, forces group ownership, and uses case-sensitive filenames while preserving case. Its mask/mode defaults are `0660` for files and `0770` for directories. `write list` grants Samba write permission; filesystem permissions still apply. `map to guest = Bad User` does not override the custom share's `guest ok = No`. |
-| [samba.container.j2](control/templates/samba.container.j2) | Retained alternative; deployment is commented out. Uses host networking, persistent private authentication data, host identity snapshots, and `RunInit=true`. Init provides signal forwarding and child reaping; it does not repair Samba crashes or configure authentication. |
-| [samba_entrypoint.sh.j2](control/templates/samba_entrypoint.sh.j2) | Inactive with the container alternative. Copies host users/groups with IDs at least 1000 and the shared group into the container's identity files before executing smbd. This aligns names with host-owned files; it does not create Samba passwords. |
 
 `oplocks`/`level2 oplocks` allow client-side caching; change notifications inform clients about updates. ACL, creation-mask, case-handling, and guest settings are explained in the [Samba configuration manual](https://www.samba.org/samba/docs/current/man-html/smb.conf.5.html).
 
@@ -100,7 +100,7 @@ See [OpenBao configuration](https://openbao.org/docs/configuration/) for listene
 
 The network node's DHCP service supplies both VLAN leases and PXE boot instructions. The control node serves boot files over TFTP and HTTP. Keeping DHCP on the router's VLAN interfaces lets clients receive boot information in their own VLAN, then reach the control node for file transfers.
 
-The control playbook deploys TFTP and HTTP containers in a root-owned, host-networked PXE pod.
+The control playbook deploys TFTP and HTTP containers in a root-owned, host-networked PXE pod. DHCP and PXE boot instructions are configured only on the network node; the former control-node proxy-DHCP template and dnsmasq Quadlet have been removed.
 
 | Template | Configuration and purpose |
 | --- | --- |
@@ -125,7 +125,7 @@ The boot sequence is:
 3. The generic script tries a MAC-specific script over HTTP, using a hyphen-separated MAC filename such as `02-00-00-00-10-01.ipxe`. These scripts live under `{{ pxe_base_dir }}/www/configs/ipxe/`; control setup creates the directory, and the production provisioning playbook described below generates per-device scripts.
 4. If chaining fails, the generic menu offers rescue, shell, and reboot. Rescue assets must already exist: the playbook downloads iPXE binaries but does not populate rescue kernels/initrds.
 
-For the alternative Secure Boot path, DHCP selects the architecture-specific shim executable, which starts GRUB. The TFTP mapping serves `{{ pxe_base_dir }}/tftp/configs/grub/grub.cfg` for matching GRUB configuration requests, preserving the filename requested by the existing EFI binary. Moving this configuration therefore requires no changes to the shim/iPXE boot paths in either the control-node or network-node dnsmasq template. Those Secure Boot DHCP alternatives remain commented out; the active path above uses unsigned iPXE. The separate `boostrap/` workflow retains its architecture-specific GRUB configuration layout.
+For the alternative Secure Boot path, DHCP selects the architecture-specific shim executable, which starts GRUB. The TFTP mapping serves `{{ pxe_base_dir }}/tftp/configs/grub/grub.cfg` for matching GRUB configuration requests, preserving the filename requested by the existing EFI binary. Moving this configuration therefore requires no changes to the shim/iPXE boot paths in the network-node dnsmasq template. Those Secure Boot DHCP alternatives remain commented out; the active path above uses unsigned iPXE. The separate `boostrap/` workflow retains its architecture-specific GRUB configuration layout.
 
 Clients need routed access to control-node TFTP and HTTP across VLANs. Keep the selected reservation address consistent with the control node's actual address and `remote_server_ip`, which supplies the HTTP base URL.
 
