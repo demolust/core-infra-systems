@@ -1,50 +1,5 @@
 ---
-- name: Ensure major dependencies are installed (podman)
-  ansible.builtin.dnf:
-    name:
-      - podman
-      - podman-docker
-      - podman-compose
-    state: present
-    update_cache: true
-  when: ansible_facts['os_family'] == "RedHat"
-
-- name: Enable podman-auto-update timer
-  ansible.builtin.systemd:
-    name: podman-auto-update.timer
-    state: started
-    enabled: true
-
-- name: Ensure root systemd contianer directory exists
-  ansible.builtin.file:
-    path: "/etc/containers/systemd"
-    state: directory
-    mode: '0755'
-
-- name: Validate PXE server reservation
-  ansible.builtin.assert:
-    that:
-      - pxe_server_ref | length > 0
-      - pxe_server_matches | length == 1
-    fail_msg: "TARGET_PXE_SERVER_REF must match exactly one reservation ref_name."
-
-- name: Create container directory structure
-  ansible.builtin.file:
-    path: "{{ base_dir }}/{{ item }}"
-    state: directory
-    mode: '2775'
-    owner: "root"
-    group: "wheel"
-  loop:
-    - "."
-    - "configs"
-    - "configs/dnsmasq"
-    - "configs/adguard/work"
-    - "configs/adguard/conf"
-    - "state"
-    - "state/dnsmasq"
-
-- name: Deploy root containers configuration files
+- name: "Deploy {{ app.name }} configuration files"
   ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "{{ item.dest }}"
@@ -52,19 +7,14 @@
     owner: "root"
     group: "wheel"
     force: "{{ item.force | default('true') }}"
-  loop:
-    - { src: 'dnsmasq.conf.j2', dest: "{{ dnsmasq_config_dir }}/dnsmasq.conf" }
-    - { src: 'dhcp-hosts.conf.j2', dest: "{{ dnsmasq_config_dir }}/dhcp-hosts.conf" }
-    - { src: 'AdGuardHome.yaml.j2', dest: "{{ base_dir }}/configs/adguard/conf/AdGuardHome.yaml" }
+  loop: "{{ app.configs | default([]) }}"
   register: configs
 
-- name: Deploy root Quadlet files
+- name: "Deploy {{ app.name }} Quadlet files"
   ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "/etc/containers/systemd/{{ item.dest }}"
-  loop:
-    - { src: 'dnsmasq.container.j2', dest: 'dnsmasq.container' }
-    - { src: 'adguard.container.j2', dest: 'adguard.container' }
+  loop: "{{ app.templates | default([]) }}"
   register: quadlets
 
 - name: Reload systemd to generate service from Quadlet
@@ -72,12 +22,9 @@
     daemon_reload: true
   when: quadlets.changed
 
-- name: Start root containers
+- name: "Restart {{ app.name }} when files changed"
   ansible.builtin.systemd:
-    name: "{{ item }}"
+    name: "{{ app.service }}"
     state: restarted
     enabled: true
-  loop:
-    - dnsmasq.service
-    - adguard.service
   when: quadlets.changed or configs.changed

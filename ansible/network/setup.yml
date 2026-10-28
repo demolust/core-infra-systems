@@ -11,14 +11,21 @@
     ansible.builtin.include_tasks: tasks/pre_setup.yml
 
   tasks:
-    - name: Base setup
-      ansible.builtin.include_tasks: tasks/base_setup.yml
+    - name: System setup
+      ansible.builtin.include_tasks: tasks/system_setup.yml
 
     - name: Base network setup
       ansible.builtin.include_tasks: tasks/network_setup.yml
 
-    - name: Base apps setup
+    - name: Prepare container dependencies
+      ansible.builtin.import_tasks: tasks/container_deps.yml
+
+    - name: Deploy and configure all Quadlet services
       ansible.builtin.include_tasks: tasks/container_apps_setup.yml
+      loop: "{{ quadlet_services }}"
+      loop_control:
+        loop_var: app
+        label: "{{ app.name }}"
 
     - name: Fiewall setup
       ansible.builtin.include_tasks: tasks/firewall_setup.yml

@@ -1,0 +1,12 @@
+---
+- name: Create user-owned application directories
+  ansible.builtin.file:
+    path: "{{ item.1 }}"
+    state: directory
+    owner: "{{ item.0.owner }}"
+    group: "{{ item.0.group }}"
+    mode: "{{ item.0.mode }}"
+    setype: "{{ item.0.setype | default(omit) }}"
+  with_subelements:
+    - "{{ data_directories | rejectattr('owner', 'equalto', 'root') | list }}"
+    - paths

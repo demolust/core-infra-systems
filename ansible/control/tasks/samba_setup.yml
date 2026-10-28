@@ -1,0 +1,79 @@
+---
+- name: Install Samba packages (Fedora/RedHat)
+  ansible.builtin.dnf:
+    name:
+      - samba
+      - samba-client
+      - samba-common
+    state: present
+    update_cache: true
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Generate smb configuration from template
+  ansible.builtin.template:
+    src: smb.conf.j2
+    dest: "/etc/samba/smb.conf"
+    mode: '0644'
+
+#- name: Inject NTLM hash for Samba user
+#  ansible.builtin.shell: |
+#    pdbedit -a -u {{ item.name }} --set-nt-hash {{ item.password }}
+#  loop: "{{ samba_users }}"
+#  no_log: true
+#  register: pdb_result
+#  changed_when: "'User added' in pdb_result.stdout"
+
+- name: Set Samba password
+  ansible.builtin.shell: |
+    (echo "{{ item.password }}"; echo "{{ item.password }}") | smbpasswd -s -a {{ item.name }}
+  loop: "{{ samba_users }}"
+  no_log: true
+  register: smb_result
+  changed_when: "'Added user' in smb_result.stdout"
+
+- name: Start and enable Samba services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - smb
+    - nmb
+  when: ansible_facts['os_family'] == "RedHat"
+
+#- name: Sync host identity files for Samba container
+#  ansible.builtin.copy:
+#    src: "{{ item.src }}"
+#    dest: "{{ item.dest }}"
+#    remote_src: true
+#    mode: '0644'
+#  loop:
+#    - { src: '/etc/passwd', dest: "{{ samba_conf_dir }}/host-passwd" }
+#    - { src: '/etc/group', dest: "{{ samba_conf_dir }}/host-group" }
+
+#- name: Pre-stage Samba user database using matching container version
+#  containers.podman.podman_container:
+#    name: samba_db_generator
+#    image: docker.io/instantlinux/samba:latest
+#    rm: true
+#    state: started
+#    detach: false
+#    entrypoint: "/bin/sh"
+#    command:
+#      - "-c"
+#      - |
+#        awk -F: '$3 >= 1000' /host-etc/passwd >> /etc/passwd
+#        awk -F: '$3 >= 1000' /host-etc/group >> /etc/group
+#        grep -E '^{{ system_groups.share | quote }}:' /host-etc/group >> /etc/group || true
+#        printf "[global]\npassdb backend = tdbsam:/private/passdb.tdb\n" > /tmp/bootstrap.conf
+#        if ! pdbedit -b tdbsam:/private/passdb.tdb -u {{ item.name | quote }} > /dev/null 2>&1; then
+#          (echo {{ item.password | quote }}; echo {{ item.password | quote }}) | smbpasswd -c /tmp/bootstrap.conf -s -a {{ item.name | quote }}
+#        else
+#          (echo {{ item.password | quote }}; echo {{ item.password | quote }}) | smbpasswd -c /tmp/bootstrap.conf -s {{ item.name | quote }}
+#        fi
+#    volumes:
+#      - "{{ samba_priv_dir }}:/private:Z"
+#      - "{{ samba_conf_dir }}/host-passwd:/host-etc/passwd:Z,ro"
+#      - "{{ samba_conf_dir }}/host-group:/host-etc/group:Z,ro"
+#  loop: "{{ samba_users }}"
+#  no_log: true

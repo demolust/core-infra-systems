@@ -2,3 +2,10 @@
 - name: Set network CIDR fact
   ansible.builtin.set_fact:
     wan_network_cidr: "{{ ansible_facts['default_ipv4']['address'] | regex_replace('\\.\\d+$', '.0/24') }}"
+
+- name: Validate PXE server reservation
+  ansible.builtin.assert:
+    that:
+      - pxe_server_ref | length > 0
+      - pxe_server_matches | length == 1
+    fail_msg: "TARGET_PXE_SERVER_REF must match exactly one reservation ref_name."

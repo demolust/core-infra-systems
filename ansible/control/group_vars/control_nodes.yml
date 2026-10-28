@@ -248,8 +248,8 @@ gh_runner_labels: "{{ lookup('env', 'GH_RUNNER_LABELS') | default('', true) }}"
 gh_url: "{{ lookup('env', 'GH_URL') | default('', true) }}"
 gh_pat: "{{ lookup('env', 'GH_PAT') | default('', true) }}"
 
-# Quadlets apps data
-quadlet_services:
+# system user services
+quadlet_user_services:
   - name: navidrome
     user: "{{ system_users.navidrome.name }}"
     group: "{{ system_groups.share }}"
@@ -260,6 +260,9 @@ quadlet_services:
     user: "{{ system_users.unifi.name }}"
     group: "{{ system_groups.unifi }}"
     service: "unifi-controller-pod"
+    configs:
+      - { src: "unifi.env.j2", dest: "{{ unifi_env_file }}" }
+      - { src: "init-mongo.js.j2", dest: "{{ unifi_paths.init }}/init-mongo.js" }
     templates:
       - { src: "unifi-controller.pod.j2", dest: "unifi-controller.pod" }
       - { src: "unifi-db.container.j2", dest: "unifi-db.container" }
@@ -268,12 +271,17 @@ quadlet_services:
     user: "{{ system_users.vault.name }}"
     group: "{{ system_groups.vault }}"
     service: "vault"
+    configs:
+      - { src: "vault.env.j2", dest: "{{ vault_env_file }}" }
+      - { src: "vault.hcl.j2", dest: "{{ vault_init_file }}" }
     templates:
       - { src: "vault.container.j2", dest: "vault.container" }
   - name: "netbox"
     user: "{{ system_users.netbox.name }}"
     group: "{{ system_groups.netbox }}"
     service: "netbox-pod"
+    configs:
+      - { src: "netbox.env.j2", dest: "{{ netbox_env_file }}" }
     templates:
       - { src: "netbox.pod.j2", dest: "netbox.pod" }
       - { src: "netbox-db.container.j2", dest: "netbox-db.container" }
@@ -284,5 +292,24 @@ quadlet_services:
     user: "{{ system_users.runner.name }}"
     group: "{{ system_groups.runner }}"
     service: "runner"
+    configs:
+      - { src: "runner.env.j2", dest: "{{ runner_env_file }}" }
+      - { src: "runner_auth.json.j2", dest: "{{ runner_home }}/.config/containers/auth.json" }
     templates:
       - { src: "runner.container.j2", dest: "runner.container" }
+
+# root services
+quadlet_services:
+  - name: pxe
+    service: pxe-pod.service
+    configs:
+      - { src: "proxmox_setup.js.j2", dest: "{{ pxe_base_dir }}/scripts/nginx/proxmox_setup.js" }
+      - { src: "nginx.conf.j2", dest: "{{ pxe_base_dir }}/configs/nginx.conf" }
+      - { src: "tftpd.map.j2", dest: "{{ pxe_base_dir }}/configs/tftpd.map" }
+      - { src: "grub.cfg.j2", dest: "{{ pxe_base_dir }}/tftp/configs/grub/grub.cfg" }
+      - { src: "boot.ipxe.j2", dest: "{{ pxe_base_dir }}/tftp/configs/ipxe/boot.ipxe" }
+      - { src: "boot.ipxe.j2", dest: "{{ pxe_base_dir }}/www/configs/ipxe/boot.ipxe" }
+    templates:
+      - { src: "pxe.pod.j2", dest: "pxe.pod" }
+      - { src: "pxe_tftp.container.j2", dest: "pxe_tftp.container" }
+      - { src: "pxe_nginx.container.j2", dest: "pxe_nginx.container" }

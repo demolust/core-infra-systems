@@ -6,25 +6,42 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    - name: Install base apps
-      ansible.builtin.import_tasks: tasks/base_install.yml
+    - name: System setup
+      ansible.builtin.import_tasks: tasks/system_setup.yml
 
-    - name: Setup user
-      ansible.builtin.import_tasks: tasks/user_setup.yml
+    - name: Setup admin user
+      ansible.builtin.import_tasks: tasks/admin_user_setup.yml
 
-    - name: Install main server apps
-      ansible.builtin.import_tasks: tasks/main_install.yml
+    - name: Prepare container dependencies
+      ansible.builtin.import_tasks: tasks/container_deps.yml
 
-    - name: Config user
-      ansible.builtin.import_tasks: tasks/user_config.yml
-      vars:
-        ansible_become_user: "{{ admin_username }}"
+    - name: Prepare user application dependencies
+      ansible.builtin.import_tasks: tasks/container_user_deps.yml
 
-    - name: Deploy and Configure all Quadlet Services
+    - name: Post system setup
+      ansible.builtin.import_tasks: tasks/post_system_setup.yml
+
+    - name: Samba Setup
+      ansible.builtin.import_tasks: tasks/samba_setup.yml
+
+    - name: Deploy and configure root Quadlet services
       ansible.builtin.include_tasks: tasks/container_apps_setup.yml
       loop: "{{ quadlet_services }}"
       loop_control:
         loop_var: app
+        label: "{{ app.name }}"
+
+    - name: Deploy and configure user Quadlet services
+      ansible.builtin.include_tasks: tasks/container_user_apps_setup.yml
+      loop: "{{ quadlet_user_services }}"
+      loop_control:
+        loop_var: app
+        label: "{{ app.name }}"
+
+    - name: Config admin user
+      ansible.builtin.import_tasks: tasks/admin_user_config.yml
+      vars:
+        ansible_become_user: "{{ admin_username }}"
 
   handlers:
     - name: Load Control Node Handlers

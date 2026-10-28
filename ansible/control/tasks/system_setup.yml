@@ -58,9 +58,6 @@
       - tuned
       - tuned-ppd
       - upower
-      - podman
-      - podman-docker
-      - podman-compose
       - firewalld
       - acpid
       - ltrace
@@ -312,18 +309,6 @@
     creates: "/var/lib/systemd/linger/{{ item.value.name }}"
   loop: "{{ system_users | dict2items }}"
 
-- name: Create specific directory tree with permissions and SELinux
-  ansible.builtin.file:
-    path: "{{ item.1 }}"
-    state: directory
-    owner: "{{ item.0.owner }}"
-    group: "{{ item.0.group }}"
-    mode: "{{ item.0.mode }}"
-    setype: "{{ item.0.setype | default(omit) }}"
-  with_subelements:
-    - "{{ data_directories }}"
-    - paths
-
 - name: "Get {{ system_users.runner.name }} runner user details"
   ansible.builtin.getent:
     database: passwd
@@ -332,26 +317,6 @@
 - name: "Set {{ system_users.runner.name }} home directory fact"
   ansible.builtin.set_fact:
     runner_home: "{{ ansible_facts['getent_passwd'][system_users.runner.name][4] }}"
-
-- name: Deploy application initialization files
-  ansible.builtin.template:
-    src: "{{ item.name }}"
-    dest: "{{ item.dest }}"
-    owner: "{{ item.owner }}"
-    group: "{{ item.group }}"
-    mode: '0644'
-  loop:
-    # UniFi
-    - { name: "unifi.env.j2", dest: "{{ unifi_env_file }}", owner: "{{ system_users.unifi.name }}", group: "{{ system_groups.unifi }}" }
-    - { name: "init-mongo.js.j2", dest: "{{ unifi_paths.init }}/init-mongo.js", owner: "{{ system_users.unifi.name }}", group: "{{ system_groups.unifi }}" }
-    # Vault
-    - { name: "vault.env.j2", dest: "{{ vault_env_file }}", owner: "{{ system_users.vault.name }}", group: "{{ system_groups.vault }}" }
-    - { name: "vault.hcl.j2", dest: "{{ vault_init_file }}", owner: "{{ system_users.vault.name }}", group: "{{ system_groups.vault }}" }
-    # NetBox
-    - { name: "netbox.env.j2", dest: "{{ netbox_env_file }}", owner: "{{ system_users.netbox.name }}", group: "{{ system_groups.netbox }}" }
-    # Runner
-    - { name: "runner.env.j2", dest: "{{ runner_env_file }}", owner: "{{ system_users.runner.name }}", group: "{{ system_groups.runner }}" }
-    - { name: "runner_auth.json.j2", dest: "{{ runner_home }}/.config/containers/auth.json", owner: "{{ system_users.runner.name }}", group: "{{ system_groups.runner }}" }
 
 - name: Ensure subuid/subgid ranges for system users
   ansible.builtin.lineinfile:
@@ -371,35 +336,44 @@
     group: root
     mode: '0644'
 
-- name: "Ensure public_content_rw_t context is defined for {{ data_basedir }} and its contents"
-  community.general.sefcontext:
-    target: "{{ item }}"
-    setype: public_content_rw_t
-    state: present
-  loop:
-    - "{{ data_basedir }}"
-    - "{{ data_basedir }}(/.*)?"
-  register: selinux_context_changed
+- name: Allow Samba service via firewalld
+  ansible.posix.firewalld:
+    service: samba
+    permanent: true
+    state: enabled
+    immediate: true
+  when: ansible_facts['os_family'] == "RedHat"
 
-- name: Apply new SELinux context to files on disk
-  ansible.builtin.command: "restorecon -Rv {{ data_basedir }}"
-  when: selinux_context_changed.changed
-  changed_when: true
-
-- name: Add selinux booleans to allow general interactation with public shared content
-  ansible.posix.seboolean:
-    name: "{{ item }}"
-    state: true
-    persistent: true
+- name: Allow application ports via firewalld
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  when: ansible_facts['os_family'] == "RedHat"
   loop:
-    # Containers read & interact public shared content
-    - container_manage_public_content
-    - container_read_public_content
-    - container_manage_cgroup
-    - container_use_devices
-    - virt_use_samba
-    # Samba read/write public_content_rw_t shares
-    - smbd_anon_write
+    - "{{ navidrome_port }}/tcp"
+    - "{{ vault_port }}/tcp"
+    - "{{ netbox_port }}/tcp"
+
+- name: Allow Unifi Controller ports via firewalld
+  ansible.posix.firewalld:
+    port: "{{ item.host }}/{{ item.proto }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop: "{{ unifi_ports }}"
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Allow PXE ports via firewalld
+  ansible.posix.firewalld:
+    service: "{{ item.name | default(omit) }}"
+    port: "{{ (item.port + '/' + item.proto) if item.name is not defined else omit }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop: "{{ pxe_services }}"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Harden SSH configuration
   ansible.builtin.lineinfile:

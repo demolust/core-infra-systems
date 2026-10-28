@@ -23,8 +23,7 @@ net_services:
 lab_domain: "{{ lookup('env', 'TARGET_LAB_DOMAIN') | default('', true) }}"
 local_fwd_dns_port: "1053"
 
-# Static DHCP reservations; JSON array supplied by the workstation environment.
-# Each item: mac, ipv4; optional ref_name (comment) and name (DHCP hostname).
+# JSON array where each item: item: mac, ipv4; optional ref_name (comment) and name (DHCP hostname).
 # An unset/empty variable produces no reservations.
 dhcp_reservations: "{{ lookup('env', 'TARGET_DHCP_RESERVATIONS_JSON') | default('[]', true) | ansible.builtin.from_json }}"
 
@@ -50,11 +49,26 @@ wg_server_priv_key: "{{ lookup('env', 'TARGET_WIREGUARD_PRIV_KEY') | default('',
 wg_server_ip: "10.100.0.1"
 wg_server_mask: "24"
 wg_network_cidr: "{{ wg_server_ip | regex_replace('\\.\\d+$', '.0/24') }}"
-# WireGuard peers; JSON array supplied by the workstation environment.
-# Each item: name, pub_key, preshared_key, vpn_ip (address only, without /32).
+# JSON array where each item: name, pub_key, preshared_key, vpn_ip (address only, without /32).
 # An unset/empty variable produces no peers.
 wireguard_peers: "{{ lookup('env', 'TARGET_WIREGUARD_PEERS_JSON') | default('[]', true) | ansible.builtin.from_json }}"
 
 duckdns_domain: "{{ lookup('env', 'TARGET_DDNS_DOMAIN') | default('', true) }}"
 duckdns_token: "{{ lookup('env', 'TARGET_DDNS_TOKEN') | default('', true) }}"
 
+# root services
+quadlet_services:
+  - name: dnsmasq
+    service: dnsmasq.service
+    configs:
+      - { src: "dnsmasq.conf.j2", dest: "{{ dnsmasq_config_dir }}/dnsmasq.conf" }
+      - { src: "dhcp-hosts.conf.j2", dest: "{{ dnsmasq_config_dir }}/dhcp-hosts.conf" }
+    templates:
+      - { src: "dnsmasq.container.j2", dest: "dnsmasq.container" }
+
+  - name: adguard
+    service: adguard.service
+    configs:
+      - { src: "AdGuardHome.yaml.j2", dest: "{{ base_dir }}/configs/adguard/conf/AdGuardHome.yaml" }
+    templates:
+      - { src: "adguard.container.j2", dest: "adguard.container" }

@@ -1,0 +1,38 @@
+---
+- name: Ensure major dependencies are installed (podman)
+  ansible.builtin.dnf:
+    name:
+      - podman
+      - podman-docker
+      - podman-compose
+    state: present
+    update_cache: true
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Enable podman-auto-update timer
+  ansible.builtin.systemd:
+    name: podman-auto-update.timer
+    state: started
+    enabled: true
+
+- name: Ensure root systemd contianer directory exists
+  ansible.builtin.file:
+    path: "/etc/containers/systemd"
+    state: directory
+    mode: '0755'
+
+- name: Create container directory structure
+  ansible.builtin.file:
+    path: "{{ base_dir }}/{{ item }}"
+    state: directory
+    mode: '2775'
+    owner: "root"
+    group: "wheel"
+  loop:
+    - "."
+    - "configs"
+    - "configs/dnsmasq"
+    - "configs/adguard/work"
+    - "configs/adguard/conf"
+    - "state"
+    - "state/dnsmasq"
