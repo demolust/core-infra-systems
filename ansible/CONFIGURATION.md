@@ -10,15 +10,19 @@ Addresses and ports describe repository defaults. Software versions are selected
 
 ### Host preparation and service ownership
 
-[base_install.yml](control/tasks/base_install.yml) installs tools for interactive administration, diagnostics, development, and media/document processing, enables supporting repositories, and builds tools unavailable in the desired form from normal packages. Selected streams, source revisions, and source RPMs are defined there. [user_config.yml](control/tasks/user_config.yml) installs the administrator's dotfiles and user tools, including a separate Neovim Python environment. [user_setup.yml](control/tasks/user_setup.yml) grants administrator, shared-storage, and GitOps group access. SSH disables root/password login and limits authentication attempts.
+[system_setup.yml](control/tasks/system_setup.yml) installs tools for interactive administration, diagnostics, development, and media/document processing, enables supporting repositories, and builds tools unavailable in the desired form from normal packages. Selected streams, source revisions, and source RPMs are defined there. [admin_user_config.yml](control/tasks/admin_user_config.yml) installs the administrator's dotfiles and user tools, including a separate Neovim Python environment. [admin_user_setup.yml](control/tasks/admin_user_setup.yml) grants administrator, shared-storage, and GitOps group access. SSH disables root/password login and limits authentication attempts.
 
 Applications run under separate `runner`, `unifi`, `navidrome`, `vault`, and `netbox` accounts. Their user Quadlets live under `/var/lib/<account>/.config/containers/systemd`; PXE instead uses root-owned units under `/etc/containers/systemd`.
+
+The setup separates host preparation, administrator creation, container dependencies, shared SELinux settings, native Samba, application deployment, and administrator tool configuration. [container_deps.yml](control/tasks/container_deps.yml) installs Podman, creates root-owned storage and PXE directories, applies the persistent file-context rule, downloads iPXE binaries, and enables the host auto-update timer. [container_user_deps.yml](control/tasks/container_user_deps.yml) creates the remaining user-owned application directories; [post_system_setup.yml](control/tasks/post_system_setup.yml) enables the shared SELinux booleans.
+
+Application definitions live in `quadlet_services` and `quadlet_user_services` in [control variables](control/group_vars/control_nodes.yml). Each entry names its service and lists configuration files and Quadlet templates. [container_apps_setup.yml](control/tasks/container_apps_setup.yml) deploys root services; [container_user_apps_setup.yml](control/tasks/container_user_apps_setup.yml) deploys user services through each account's systemd manager. Changed configuration or Quadlet files trigger a restart of that entry's service, with a daemon reload when needed. Unchanged files do not trigger that restart. The user task also enables and restarts each account's Podman auto-update timer.
 
 **Subordinate IDs and rootless Podman.** `/etc/subuid` delegates extra host user IDs to an account; `/etc/subgid` does the same for group IDs. An entry such as `runner:100000:65536` authorizes that account to map 65,536 IDs starting at 100000. It does not create those users or grant login access. See the upstream [subuid](https://github.com/shadow-maint/shadow/blob/master/man/subuid.5.xml) and [subgid](https://github.com/shadow-maint/shadow/blob/master/man/subgid.5.xml) manuals.
 
 Podman uses these allocations, through `newuidmap`/`newgidmap`, to build a user namespace. With the ordinary rootless mapping, container root maps to the invoking host account; other container identities use subordinate IDs. Thus an image's database or application user can own files without becoming that UID on the host. These mappings also determine ownership on bind-mounted storage. See [Podman rootless operation](https://docs.podman.io/en/latest/markdown/podman.1.html) and [inspecting the namespace with podman unshare](https://docs.podman.io/en/latest/markdown/podman-unshare.1.html).
 
-The current allocation loop advances for each user/file pair, so the same account gets different UID and GID starting ranges. Different starts are technically possible; the management issue is that allocations depend on dictionary order and are not checked against existing ranges. Changing mappings can leave persistent files owned by old mapped IDs. The allocation review remains in [todo.md](../todo.md).
+The current allocation loop advances for each user/file pair, so the same account gets different UID and GID starting ranges. Different starts are technically possible; the management issue is that allocations depend on dictionary order and are not checked against existing ranges. Changing mappings can leave persistent files owned by old mapped IDs.
 
 **Keeping user services alive.** `loginctl enable-linger` starts the account's systemd user manager at boot and preserves it after logout. This lets rootless applications behave as server services without an interactive session. See [loginctl lingering](https://www.freedesktop.org/software/systemd/man/latest/loginctl.html).
 
@@ -129,7 +133,7 @@ See [dnsmasq DHCP boot options](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-m
 
 #### Proxmox installation answer service
 
-[main_install.yml](control/tasks/main_install.yml) prepares the Proxmox content directories and deploys the answer handler. The Nginx container mounts the following host paths:
+[container_deps.yml](control/tasks/container_deps.yml) prepares the Proxmox content directories; the PXE entry in `quadlet_services` deploys the answer handler through [container_apps_setup.yml](control/tasks/container_apps_setup.yml). The Nginx container mounts the following host paths:
 
 | Host path | Container path | Purpose |
 | --- | --- | --- |
@@ -140,7 +144,24 @@ Place per-machine answer files under `{{ pxe_base_dir }}/www/configs/proxmox/`, 
 
 The handler accepts system information directly in the JSON body or inside `sysinfo`, with a `network_interfaces` or `network-interfaces` array containing `mac` fields. Exactly one existing answer file across the supplied interfaces returns HTTP 200 with `application/toml`; no match returns 404 and multiple distinct matches return 409. Invalid JSON or missing interface information returns 400, non-POST methods return 405, and file-read failures other than missing files return 500. Responses set `Cache-Control: no-store`.
 
-This prepares the answer service and the `www/x86_64/proxmox` and `www/aarch64/proxmox` asset directories. The playbook does not populate Proxmox boot assets, generate TOML answers, prepare installer media, or add a Proxmox entry to the generic iPXE menu. Supply the assets, answer files, and machine-specific iPXE scripts separately.
+The main control setup prepares the answer service and asset directories. [proxmox_iso_setup.yml](control/proxmox_iso_setup.yml) separately downloads and prepares the installer assets on the control node, using `TARGET_PXE_INT` to discover the address embedded in the answer-service URL.
+
+[proxmox_download_isos.yml](control/tasks/proxmox_download_isos.yml) reads the upstream `SHA256SUMS` manifest and selects the highest matching version independently for `x86_64` and `aarch64`, with the latter matching the `-arm64.iso` suffix. Both architectures must have a matching release. Downloads go under `{{ pxe_base_dir }}/downloads`, use the manifest checksum, and receive an additional SHA-256 check after download. Selection follows the manifest at run time rather than a pinned installer version.
+
+[proxmox_prepare_isos.yml](control/tasks/proxmox_prepare_isos.yml) runs with privilege escalation for each selected release. It mounts the source ISO read-only, copies its complete tree into a temporary workspace, and writes `auto-installer-mode.toml` with HTTP mode and `http://{{ pxe_server_ip }}:{{ pxe_http_port }}/proxmox/answer`. Here `pxe_server_ip` is discovered on the control node's PXE interface; keep it aligned with the network node's selected PXE reservation.
+
+The task publishes these files under `{{ pxe_base_dir }}/www/<architecture>/proxmox/`:
+
+| File | Purpose |
+| --- | --- |
+| `vmlinuz` | Installer kernel copied from `boot/linux26`. |
+| `initrd-original.img` | Unmodified installer initrd retained from the source ISO. |
+| `initrd.img` | Gzip initrd: Zstandard input is decompressed and recompressed; existing gzip input is copied unchanged. Other compression formats fail validation, and `gzip -t` checks the normalized result before publication. |
+| `proxmox_installer.iso` | ISO rebuilt from the copied tree, including the HTTP automatic-installer configuration, using `mkisofs -R -J -iso-level 3`. |
+
+The rebuild does not pass firmware boot options to `mkisofs`; this file is installer content for the PXE workflow, without a guarantee that it can boot directly as USB or optical media. Preparation requires host mount/loop support and the `file`, `zstd`, `gzip`, and `mkisofs` tools. An `always` block unmounts the source and removes the temporary workspace. Check mode skips ISO preparation and the additional checksum verification.
+
+TOML answers and machine-specific iPXE scripts still need to be supplied separately. Neither control playbook adds a Proxmox entry to the generic iPXE menu.
 
 ### GitOps tooling and the GitHub-built runner
 
@@ -160,6 +181,8 @@ The [GitHub Actions workflow](../.github/workflows/build_runner_container.yml) b
 ## Network node: router on a stick
 
 [network/setup.yml](network/setup.yml) configures a Linux router with one tagged LAN uplink carrying multiple VLANs, a separate WAN connection, DHCP/DNS services, and WireGuard remote access. Routing is performed by the host kernel; dnsmasq and AdGuard provide supporting services in host-networked containers.
+
+[pre_setup.yml](network/tasks/pre_setup.yml) validates PXE server selection before system changes. [container_deps.yml](network/tasks/container_deps.yml) installs Podman, prepares service storage and the root Quadlet directory, and enables the host auto-update timer. The `quadlet_services` list in [network variables](network/group_vars/network_nodes.yml) defines dnsmasq and AdGuard configuration/templates. [container_apps_setup.yml](network/tasks/container_apps_setup.yml) deploys each entry, reloads systemd when its Quadlets change, and restarts its service when configuration or Quadlet files change.
 
 ### Physical NICs and early boot
 
@@ -227,7 +250,7 @@ The router's dnsmasq leases addresses and advertises the control node's PXE boot
 | [AdGuardHome.yaml.j2](network/templates/AdGuardHome.yaml.j2) | Binds DNS on router/VLAN/VPN/loopback addresses at port 53 and restricts allowed clients. Uses encrypted public upstreams and a lab-domain route to local dnsmasq. Configures the UI account, filters, cache, and schema expected by the application. |
 | [adguard.container.j2](network/templates/adguard.container.j2) | Uses host networking for those host IP bindings and persists both AdGuard configuration and work data. |
 
-**PXE server selection.** In [network/.env.example](network/.env.example), `TARGET_PXE_SERVER_REF` selects a reservation from `TARGET_DHCP_RESERVATIONS_JSON` by an exact, case-sensitive `ref_name` match. For example, `TARGET_PXE_SERVER_REF='Control node'` selects the example reservation with `ref_name: "Control node"` and IPv4 `172.16.10.10`. [Network variables](network/group_vars/network_nodes.yml) derive `pxe_server_ip` from that reservation's `ipv4`. [container_apps_setup.yml](network/tasks/container_apps_setup.yml) requires a nonempty reference and exactly one match before rendering configuration; unset, missing, or duplicate matches fail validation. This reference is required by the current network setup even though the reservation list itself defaults to empty.
+**PXE server selection.** In [network/.env.example](network/.env.example), `TARGET_PXE_SERVER_REF` selects a reservation from `TARGET_DHCP_RESERVATIONS_JSON` by an exact, case-sensitive `ref_name` match. For example, `TARGET_PXE_SERVER_REF='Control node'` selects the example reservation with `ref_name: "Control node"` and IPv4 `172.16.10.10`. [Network variables](network/group_vars/network_nodes.yml) derive `pxe_server_ip` from that reservation's `ipv4`. [pre_setup.yml](network/tasks/pre_setup.yml) requires a nonempty reference and exactly one match before rendering configuration; unset, missing, or duplicate matches fail validation. This reference is required by the current network setup even though the reservation list itself defaults to empty.
 
 A VLAN 20 client's DHCP exchange arrives through `lan0.20`. It receives an address from that VLAN's pool, a /24 mask, gateway `172.16.20.1`, and DNS server `172.16.20.1`. DHCP configures the client's network; later DNS queries are a separate exchange.
 
@@ -240,7 +263,7 @@ dnsmasq's `domain` and `local=/.../` define local-domain handling, while DHCP le
 
 AdGuard's bootstrap resolvers resolve the public upstream servers' hostnames. Parallel upstream mode queries multiple resolvers; optimistic caching can answer with cached data while refreshing it. The template enables a 32 MiB cache, disables query rate limiting for bursts, and enables AdGuard/AdAway filters. See [AdGuard configuration fields](https://github.com/AdguardTeam/AdGuardHome/wiki/Configuration).
 
-[base_setup.yml](network/tasks/base_setup.yml) disables/masks systemd-resolved and its stub listener, leaving AdGuard to provide the configured DNS service. `net.ipv4.ip_nonlocal_bind=1` permits binding IPv4 addresses not currently assigned, helping services start before VLAN/VPN addresses exist. It does not create those addresses or guarantee reachability. See [kernel bind-related sysctls](https://docs.kernel.org/networking/ip-sysctl.html).
+[system_setup.yml](network/tasks/system_setup.yml) disables/masks systemd-resolved and its stub listener, leaving AdGuard to provide the configured DNS service. `net.ipv4.ip_nonlocal_bind=1` permits binding IPv4 addresses not currently assigned, helping services start before VLAN/VPN addresses exist. It does not create those addresses or guarantee reachability. See [kernel bind-related sysctls](https://docs.kernel.org/networking/ip-sysctl.html).
 
 ### Why dnsmasq has extra Linux capabilities
 
@@ -303,4 +326,4 @@ The neighbor lookup is a convenience rather than verified device identity; an ex
 
 ## Shared maintenance
 
-[update_system.yml](update_system.yml) upgrades inventory hosts in batches of 25% and reboots when the platform's reboot-needed check indicates it is required. Planned service recovery, secret permissions, ID allocation, and provisioning improvements are tracked in [todo.md](../todo.md).
+[update_system.yml](update_system.yml) upgrades inventory hosts in batches of 25% and reboots when the platform's reboot-needed check indicates it is required.
