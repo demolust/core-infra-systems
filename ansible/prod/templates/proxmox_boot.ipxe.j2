@@ -1,7 +1,7 @@
 #!ipxe
 # Managed by Ansible
 set proxmox_url http://{{ pxe_server_ip }}:{{ pxe_http_port }}/{{ proxmox_host.arch }}/proxmox
-kernel ${proxmox_url}/vmlinuz initrd=initrd.magic rw quiet splash=silent proxmox-start-auto-installer || exit
+kernel ${proxmox_url}/vmlinuz initrd=initrd.magic rw proxmox-start-auto-installer ip=dhcp || exit
 initrd ${proxmox_url}/initrd.img || exit
 initrd ${proxmox_url}/proxmox_installer.iso /proxmox.iso || exit
 boot
