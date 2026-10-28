@@ -1,6 +1,6 @@
 # Infrastructure configuration and design
 
-This explains the purpose of the configuration, how the less obvious settings work, and how the services fit together. The deployed configuration in `control`, `network`, and `boostrap` is described below. Package installation and SSH hardening are summarized; networking, identity mapping, permissions, and provisioning receive more detail.
+This explains the purpose of the configuration, how the less obvious settings work, and how the services fit together. The deployed configuration in `control`, `network`, `prod`, and `boostrap` is described below. Package installation and SSH hardening are summarized; networking, identity mapping, permissions, and provisioning receive more detail.
 
 Addresses and ports describe repository defaults. Software versions are selected in the linked variables, image definitions, and build tasks rather than repeated here. Hardware details and the Samba deployment decision include the operator's context.
 
@@ -122,7 +122,7 @@ The boot sequence is:
 
 1. Network-node dnsmasq leases an address and matches UEFI client architecture: values 7/9 select `/x86_64/ipxe.efi`; value 11 selects `/aarch64/ipxe.efi`. Both point to the control node's reservation address.
 2. The client downloads that binary from control-node TFTP. When iPXE requests boot information, its `iPXE` user class selects `/configs/ipxe/boot.ipxe` from the same TFTP server, avoiding another binary download.
-3. The generic script tries a MAC-specific script over HTTP, using a hyphen-separated MAC filename such as `02-00-00-00-10-01.ipxe`. Place these scripts under `{{ pxe_base_dir }}/www/configs/ipxe/`; the playbook creates the directory but does not generate per-device scripts.
+3. The generic script tries a MAC-specific script over HTTP, using a hyphen-separated MAC filename such as `02-00-00-00-10-01.ipxe`. These scripts live under `{{ pxe_base_dir }}/www/configs/ipxe/`; control setup creates the directory, and the production provisioning playbook described below generates per-device scripts.
 4. If chaining fails, the generic menu offers rescue, shell, and reboot. Rescue assets must already exist: the playbook downloads iPXE binaries but does not populate rescue kernels/initrds.
 
 For the alternative Secure Boot path, DHCP selects the architecture-specific shim executable, which starts GRUB. The TFTP mapping serves `{{ pxe_base_dir }}/tftp/configs/grub/grub.cfg` for matching GRUB configuration requests, preserving the filename requested by the existing EFI binary. Moving this configuration therefore requires no changes to the shim/iPXE boot paths in either the control-node or network-node dnsmasq template. Those Secure Boot DHCP alternatives remain commented out; the active path above uses unsigned iPXE. The separate `boostrap/` workflow retains its architecture-specific GRUB configuration layout.
@@ -161,7 +161,7 @@ The task publishes these files under `{{ pxe_base_dir }}/www/<architecture>/prox
 
 The rebuild does not pass firmware boot options to `mkisofs`; this file is installer content for the PXE workflow, without a guarantee that it can boot directly as USB or optical media. Preparation requires host mount/loop support and the `file`, `zstd`, `gzip`, and `mkisofs` tools. An `always` block unmounts the source and removes the temporary workspace. Check mode skips ISO preparation and the additional checksum verification.
 
-TOML answers and machine-specific iPXE scripts still need to be supplied separately. Neither control playbook adds a Proxmox entry to the generic iPXE menu.
+The production provisioning playbook described below generates TOML answers and machine-specific iPXE scripts separately. Neither control playbook adds a Proxmox entry to the generic iPXE menu.
 
 ### GitOps tooling and the GitHub-built runner
 
@@ -288,6 +288,40 @@ See [Linux capabilities](https://man7.org/linux/man-pages/man7/capabilities.7.ht
 | [duckdns.timer.j2](network/templates/duckdns.timer.j2) | Triggers the service one minute after boot and every five minutes following activation, keeping the name usable when the upstream public address changes. |
 
 VPN packets enter through the public UDP listener, emerge decrypted on `wg0`, and then follow the host's routing/firewall policies toward VLANs or the upstream subnet. Client-side allowed routes also determine what a client sends into the tunnel. See [NetworkManager WireGuard settings](https://networkmanager.dev/docs/api/latest/settings-wireguard.html) and [WireGuard cryptokey routing](https://www.wireguard.com/#cryptokey-routing).
+
+## Production nodes: Proxmox provisioning
+
+[prod/proxmox_setup_pxe_boot_files.yml](prod/proxmox_setup_pxe_boot_files.yml) prepares production machines for unattended Proxmox installation by updating the network node's DHCP reservations and publishing per-machine files on the control node. It runs against `network_nodes` and `control_nodes`; the production machines themselves do not need an installed OS or an Ansible connection.
+
+Run the network and control setup first, then [control/proxmox_iso_setup.yml](control/proxmox_iso_setup.yml) to prepare the installer assets. Copy [prod/.env.example](prod/.env.example) to a local `prod/.env`, fill in the values, and load it before provisioning. The example addresses are documentation placeholders; use the actual VLAN addresses and reserve unique IPs outside the dynamic DHCP pools.
+
+| Input | Role |
+| --- | --- |
+| `TARGET_DHCP_RESERVATIONS_JSON` | Complete reservation list, including existing infrastructure hosts. Each entry supplies `mac`, `ipv4`, and a `ref_name`; `name` supplies the short DHCP hostname for Proxmox. This replaces `dhcp-hosts.conf`, so omitted reservations are removed from that file. |
+| `TARGET_PXE_SERVER_REF` | Exact, case-sensitive `ref_name` of the control node's reservation. Its IPv4 address supplies the generated iPXE scripts' HTTP server address. |
+| `PROXMOX_REF_PATTERN` | Regular expression applied to reservation `ref_name` values using Ansible's `match` test, which matches from the start. Use anchors such as `^prod[0-9]+$` to select complete names. Reservations without `ref_name` are excluded. |
+| `PROXMOX_COUNTRY`, `PROXMOX_TIMEZONE`, `PROXMOX_MAILTO` | Shared installer country code, IANA timezone, and notification email address. |
+| `PROXMOX_SETTINGS_JSON` | Object keyed by each selected reservation's exact `ref_name`. Every selected host needs `arch`, `keyboard`, `root_password_hash`, `ssh_keys`, `filesystem`, and `disks`. Include `zfs_raid` for ZFS. Architecture must match a prepared `x86_64` or `aarch64` asset directory. |
+
+From `prod/`, after filling in `.env`:
+
+```sh
+source ./.env
+ansible-playbook -i ../control/inventories/control_nodes.yml -i ../network/inventories/network_nodes.yml proxmox_setup_pxe_boot_files.yml
+```
+
+The first play reuses the network application's deployment task to render only `dhcp-hosts.conf` and restart dnsmasq when it changes. It does not deploy dnsmasq Quadlets or regenerate the main dnsmasq configuration. Keep `TARGET_PXE_SERVER_REF` aligned with the existing network configuration; changing the boot-server reservation address also requires rerunning network setup to update its DHCP boot instructions.
+
+The second play selects reservations and calls [proxmox_host_boot_files.yml](prod/tasks/proxmox_host_boot_files.yml) for each match. Filenames use the reservation MAC lowercased and converted from colon-separated to hyphen-separated form.
+
+| Template | Generated file and behavior |
+| --- | --- |
+| [proxmox_answer.toml.j2](prod/templates/proxmox_answer.toml.j2) | Writes `{{ pxe_base_dir }}/www/configs/proxmox/<mac>.toml` with shared locale/contact settings, the host's keyboard, hashed root password, root SSH keys, filesystem, and installation disks. Both hostname and network configuration come from DHCP; supply the reservation hostname and keep the lab domain configured on the network node. Disk names omit `/dev/`, for example `nvme0n1`. |
+| [proxmox_boot.ipxe.j2](prod/templates/proxmox_boot.ipxe.j2) | Writes `{{ pxe_base_dir }}/www/configs/ipxe/<mac>.ipxe`. Loads the selected architecture's `vmlinuz` with `proxmox-start-auto-installer`, then `initrd.img` and the rebuilt `proxmox_installer.iso`, presenting the ISO as `/proxmox.iso` to the installer. |
+
+At PXE boot, the control node's generic script chains the matching MAC script automatically. The installer assets then load over HTTP, and the embedded automatic-installer configuration directs the installer to POST system information to `/proxmox/answer`. The existing answer handler selects the corresponding MAC-named TOML file. This supplies the production installation path without adding a menu entry.
+
+**Booting this unattended installer can erase the selected installation disks.** Answer rendering suppresses Ansible logs and diffs, but the generated files are mode `0644` and served through the existing HTTP service. They contain password hashes and public keys. The playbook updates selected files without removing files for hosts no longer selected; remove obsolete answer and iPXE files explicitly, and disable or remove the installation script after provisioning to avoid a later PXE boot starting installation again.
 
 ## Temporary workstation provisioning: boostrap
 
