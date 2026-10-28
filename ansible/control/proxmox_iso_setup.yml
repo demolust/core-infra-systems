@@ -16,20 +16,13 @@
     proxmox_base_download_url: https://enterprise.proxmox.com/iso
 
   tasks:
-    - name: Gather network subnet and mask
-      ansible.builtin.shell: "ip route show dev {{ pxe_interface }} | grep 'proto kernel' | awk '{print $1}'"
-      register: network_info
-      changed_when: false
-
     - name: Gather network IP address
       ansible.builtin.shell: "ip -o -4 addr show {{ pxe_interface }} | awk '{print $4}'"
       register: ip_info
       changed_when: false
 
-    - name: Set network address facts
+    - name: Set PXE server IP address fact
       ansible.builtin.set_fact:
-        remote_subnet: "{{ network_info.stdout.split('/')[0] }}"
-        remote_netmask: "{{ network_info.stdout.split('/')[1] }}"
         pxe_server_ip: "{{ ip_info.stdout.split('/')[0] }}"
 
     - name: Download standard ISO for each architecture
