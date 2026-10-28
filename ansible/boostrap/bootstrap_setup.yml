@@ -1,31 +1,31 @@
 ---
-- name: Bootstrap Setup For PXE Environment
+- name: Set up bootstrap PXE environment
   hosts: localhost
   connection: local
   gather_facts: true
 
   tasks:
-    - name: Creation of Directory Structure
+    - name: Create directory structure
       ansible.builtin.import_tasks: tasks/dir_structure_gen.yml
 
-    - name: Prepare Host Networking and Security
+    - name: Prepare host networking and security
       block:
-        - name: Elevate for 'Prepare Host Networking and Security'
+        - name: Prepare host networking and security with privilege escalation
           ansible.builtin.import_tasks: tasks/host_setup_gen.yml
       become: true
 
-    - name: Process Installation Media
+    - name: Process installation media
       ansible.builtin.import_tasks: tasks/img_manager_gen.yml
 
-    - name: Generate Configurations
+    - name: Generate configurations
       ansible.builtin.import_tasks: tasks/templates_pxe_gen.yml
 
-    - name: Start Podman Services
+    - name: Start Podman services
       block:
-        - name: Elevate for 'Start Podman Services'
+        - name: Start Podman services with privilege escalation
           ansible.builtin.import_tasks: tasks/container_gen.yml
       become: true
 
   handlers:
-    - name: Load Host Prep Handlers
+    - name: Load host preparation handlers
       ansible.builtin.import_tasks: handlers/handlers.yml

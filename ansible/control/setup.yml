@@ -1,15 +1,15 @@
 ---
-- name: Control Node Setup
+- name: Configure control node
   hosts: control_nodes
   become: true
   gather_facts: true
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    - name: System setup
+    - name: Configure system
       ansible.builtin.import_tasks: tasks/system_setup.yml
 
-    - name: Setup admin user
+    - name: Set up administrator
       ansible.builtin.import_tasks: tasks/admin_user_setup.yml
 
     - name: Prepare container dependencies
@@ -18,10 +18,10 @@
     - name: Prepare user application dependencies
       ansible.builtin.import_tasks: tasks/container_user_deps.yml
 
-    - name: Post system setup
+    - name: Configure shared SELinux settings
       ansible.builtin.import_tasks: tasks/post_system_setup.yml
 
-    - name: Samba Setup
+    - name: Configure Samba
       ansible.builtin.import_tasks: tasks/samba_setup.yml
 
     - name: Deploy and configure root Quadlet services
@@ -38,11 +38,11 @@
         loop_var: app
         label: "{{ app.name }}"
 
-    - name: Config admin user
+    - name: Configure administrator
       ansible.builtin.import_tasks: tasks/admin_user_config.yml
       vars:
         ansible_become_user: "{{ admin_username }}"
 
   handlers:
-    - name: Load Control Node Handlers
+    - name: Load control node handlers
       ansible.builtin.import_tasks: handlers/handlers.yml

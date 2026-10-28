@@ -1,14 +1,14 @@
 ---
-- name: Gather user info (needed for systemd UIDs)
+- name: Gather user information for systemd UIDs
   ansible.builtin.getent:
     database: passwd
 
-- name: Get current arch
+- name: Gather current architecture
   ansible.builtin.shell: "uname -m"
   register: arch
   changed_when: false
 
-- name: Set facts for arch
+- name: Set architecture fact
   ansible.builtin.set_fact:
     current_arch: "{{ arch.stdout }}"
 
@@ -141,7 +141,7 @@
     update_cache: true
   when: ansible_facts['os_family'] == "RedHat"
 
-- name: Install devel packages (Fedora/RedHat)
+- name: Install development packages (Fedora/RedHat)
   ansible.builtin.dnf:
     name:
       - make
@@ -193,7 +193,7 @@
     update_cache: true
   when: ansible_facts['os_family'] == "RedHat"
 
-- name: Clone Neovim Source
+- name: Clone Neovim source
   ansible.builtin.git:
     repo: https://github.com/neovim/neovim
     dest: /tmp/neovim
@@ -208,7 +208,7 @@
   args:
     creates: /usr/local/bin/nvim
 
-- name: Clone tmux Source
+- name: Clone tmux source
   ansible.builtin.git:
     repo: https://github.com/tmux/tmux
     dest: /tmp/tmux
@@ -225,7 +225,7 @@
   args:
     creates: /usr/local/bin/tmux
 
-- name: Set build rpms envs
+- name: Define RPM build variables
   ansible.builtin.set_fact:
     id3lib_srpm_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/source/tree/Packages/i/id3lib-3.8.3-61.fc43.src.rpm"
     id3v2_srpm_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/source/tree/Packages/i/id3v2-0.1.12-40.fc43.src.rpm"
@@ -249,7 +249,7 @@
     - { url: "{{ catdoc_srpm_url }}", dest: "catdoc.src.rpm" }
     - { url: "{{ mupdf_srpm_url }}",  dest: "mupdf.src.rpm" }
 
-- name: Rebuild id3lib (Dependency)
+- name: Rebuild id3lib dependency
   ansible.builtin.command: "rpmbuild --rebuild {{ build_dir }}/id3lib.src.rpm"
   args:
     creates: "/root/rpmbuild/RPMS/{{ current_arch }}/id3lib-3.8.3-61.el9.{{ current_arch }}.rpm"
@@ -274,14 +274,14 @@
   register: dnf_output
   changed_when: "'Nothing to do' not in dnf_output.stdout"
 
-- name: Create|Update the system groups
+- name: Ensure system groups exist
   ansible.builtin.group:
     name: "{{ item.value }}"
     state: present
     system: true
   loop: "{{ system_groups | dict2items }}"
 
-- name: Create|Update the system users
+- name: Ensure system users exist
   ansible.builtin.user:
     name: "{{ item.value.name }}"
     home: "/var/lib/{{ item.value.name }}"
@@ -294,7 +294,7 @@
     state: present
   loop: "{{ system_users | dict2items }}"
 
-- name: Ensure system users Quadlet directories exist
+- name: Ensure system user Quadlet directories exist
   ansible.builtin.file:
     path: "/var/lib/{{ item.value.name }}/.config/containers/systemd"
     state: directory
@@ -309,12 +309,12 @@
     creates: "/var/lib/systemd/linger/{{ item.value.name }}"
   loop: "{{ system_users | dict2items }}"
 
-- name: "Get {{ system_users.runner.name }} runner user details"
+- name: "Gather runner account details for {{ system_users.runner.name }}"
   ansible.builtin.getent:
     database: passwd
     key: runner
 
-- name: "Set {{ system_users.runner.name }} home directory fact"
+- name: "Set runner home directory fact for {{ system_users.runner.name }}"
   ansible.builtin.set_fact:
     runner_home: "{{ ansible_facts['getent_passwd'][system_users.runner.name][4] }}"
 
@@ -356,7 +356,7 @@
     - "{{ vault_port }}/tcp"
     - "{{ netbox_port }}/tcp"
 
-- name: Allow Unifi Controller ports via firewalld
+- name: Allow UniFi controller ports via firewalld
   ansible.posix.firewalld:
     port: "{{ item.host }}/{{ item.proto }}"
     permanent: true

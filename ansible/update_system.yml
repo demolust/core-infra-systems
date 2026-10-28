@@ -1,5 +1,5 @@
 ---
-- name: System Update and Patching Playbook
+- name: Update and patch systems
   hosts: all
   become: true
   # Updates 25% of the infrastructure at a time to prevent simultaneous downtime

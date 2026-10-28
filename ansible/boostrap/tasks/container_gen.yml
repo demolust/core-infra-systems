@@ -1,11 +1,11 @@
 ---
-- name: Ensure the PXE Pod exists
+- name: Ensure the PXE pod exists
   containers.podman.podman_pod:
     name: pxe_pod
     state: created
     network: host
 
-- name: Run dnsmasq Container
+- name: Run dnsmasq container
   containers.podman.podman_container:
     name: pxe_dnsmasq
     image: docker.io/4km3/dnsmasq
@@ -20,7 +20,7 @@
     volumes:
       - "{{ base_dir }}/dnsmasq.conf:/etc/dnsmasq.conf:Z"
 
-- name: Run TFTP Container (Alpine)
+- name: Run TFTP container (Alpine)
   containers.podman.podman_container:
     name: pxe_tftp
     image: docker.io/library/alpine:latest
@@ -38,7 +38,7 @@
       - "{{ base_dir }}/tftp:/var/lib/tftpboot:Z"
       - "{{ base_dir }}/tftpd.map:/etc/tftpd.map:ro,Z"
 
-- name: Run Nginx Container
+- name: Run nginx container
   containers.podman.podman_container:
     name: pxe_http
     image: docker.io/library/nginx:alpine

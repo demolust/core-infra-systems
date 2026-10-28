@@ -67,7 +67,7 @@
     insertafter: '^\[Resolve\]'
     state: present
 
-- name: Disable & mask systemd-resolved
+- name: Disable and mask systemd-resolved
   ansible.builtin.systemd:
     name: systemd-resolved.service
     state: stopped

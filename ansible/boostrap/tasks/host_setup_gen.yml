@@ -30,7 +30,7 @@
     update_cache: true
   when: ansible_facts['os_family'] == "RedHat"
 
-- name: Allow rootless user to bind to privileged ports
+- name: Allow rootless users to bind to privileged ports
   ansible.posix.sysctl:
     name: net.ipv4.ip_unprivileged_port_start
     value: '0'
@@ -66,14 +66,14 @@
   loop: "{{ pxe_services }}"
   when: ansible_facts['os_family'] not in ["Debian", "RedHat"]
 
-- name: Enable Kernel IP Forwarding
+- name: Enable kernel IP forwarding
   ansible.posix.sysctl:
     name: net.ipv4.ip_forward
     value: '1'
     state: present
     reload: true
 
-- name: Configure Firewalld Masquerade (NAT)
+- name: Configure firewalld masquerading (NAT)
   ansible.posix.firewalld:
     masquerade: true
     state: enabled
@@ -82,28 +82,28 @@
 
 - name: Configure UFW NAT
   block:
-    - name: Allow Forwarding
-      ansible.builtin.lineinfile:
-        path: /etc/default/ufw
-        regexp: '^DEFAULT_FORWARD_POLICY='
-        line: 'DEFAULT_FORWARD_POLICY="ACCEPT"'
+      - name: Allow forwarding
+        ansible.builtin.lineinfile:
+          path: /etc/default/ufw
+          regexp: '^DEFAULT_FORWARD_POLICY='
+          line: 'DEFAULT_FORWARD_POLICY="ACCEPT"'
 
-    - name: Insert NAT Rules
-      ansible.builtin.blockinfile:
-        path: /etc/ufw/before.rules
-        insertbefore: BOF
-        marker: "# {mark} ANSIBLE MANAGED NAT RULES"
-        block: |
-          *nat
-          :POSTROUTING ACCEPT [0:0]
-          -A POSTROUTING -o {{ wan_interface }} -j MASQUERADE
-          COMMIT
-      notify: Reload UFW
+      - name: Insert NAT rules
+        ansible.builtin.blockinfile:
+          path: /etc/ufw/before.rules
+          insertbefore: BOF
+          marker: "# {mark} ANSIBLE MANAGED NAT RULES"
+          block: |
+            *nat
+            :POSTROUTING ACCEPT [0:0]
+            -A POSTROUTING -o {{ wan_interface }} -j MASQUERADE
+            COMMIT
+        notify: Reload UFW
   when: ansible_facts['os_family'] == "Debian"
 
 - name: Add temporary bootstrap IP
   ansible.builtin.command:
-    cmd: "ip addr add {{ bootstrap_ip }}/{{ bootstrap_subnet}} dev {{ bootstrap_interface }}"
+    cmd: "ip addr add {{ bootstrap_ip }}/{{ bootstrap_subnet }} dev {{ bootstrap_interface }}"
   register: add_ip
   failed_when:
     - add_ip.rc != 0

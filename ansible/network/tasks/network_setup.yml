@@ -37,12 +37,12 @@
     - Rebuild initramfs
     - Reboot server
 
-- name: Unload r8169 module on lan NIC
+- name: Unload r8169 module on LAN NIC
   community.general.modprobe:
     name: r8169
     state: absent
 
-- name: Load r8125 module on lan NIC
+- name: Load r8125 module on LAN NIC
   community.general.modprobe:
     name: r8125
     state: present

@@ -1,5 +1,5 @@
 ---
-- name: Set base envs
+- name: Define administrator setup variables
   ansible.builtin.set_fact:
     rustup_sh_url: "https://sh.rustup.rs"
 
@@ -30,7 +30,7 @@
     - { src: '.local/',  dest: '.local/' }
     - { src: '.zshenv',    dest: '.zshenv' }
 
-- name: Trigger Zsh setup
+- name: Run Zsh setup
   ansible.builtin.shell: |
     source ~/.zshenv
     source "$ZDOTDIR/.zshrc"
@@ -50,7 +50,7 @@
     dest: "/tmp/rustup.sh"
     mode: '0755'
 
-- name: Run rustup.sh with non-interactive flag
+- name: Run rustup installer non-interactively
   ansible.builtin.shell: |
     source ~/.zshenv
     source "$ZDOTDIR/.zshrc"
@@ -59,7 +59,7 @@
     executable: /bin/zsh
     chdir: "{{ admin_home_dir }}"
 
-- name: Update rust to the latest version
+- name: Update Rust to the latest version
   ansible.builtin.shell: |
     source ~/.zshenv
     source "$ZDOTDIR/.zshrc"
@@ -78,7 +78,7 @@
       export PATH
     mode: '0644'
 
-- name: Install latest go
+- name: Install latest Go release
   ansible.builtin.shell: |
     source ~/.zshenv
     source "$ZDOTDIR/.zshrc"
@@ -87,7 +87,7 @@
     executable: /bin/zsh
     chdir: "{{ admin_home_dir }}"
 
-- name: Trigger install tools script
+- name: Run local tool installation script
   ansible.builtin.shell: |
     source ~/.zshenv
     source "$ZDOTDIR/.zshrc"
@@ -103,7 +103,7 @@
 - debug:
     var: script_output.stdout_lines
 
-- name: Ensure nvim cache directory exists
+- name: Ensure Neovim cache directory exists
   ansible.builtin.file:
     path: "{{ admin_home_dir }}/.cache/nvim"
     state: directory
@@ -113,12 +113,12 @@
   register: uv_install
   changed_when: "'installed' in uv_install.stdout"
 
-- name: Create uv virtualenv for neovim
+- name: Create uv virtual environment for Neovim
   ansible.builtin.command: uv venv {{ admin_home_dir }}/.cache/nvim/uv-python --python 3.12
   args:
     creates: "{{ admin_home_dir }}/.cache/nvim/uv-python"
 
-- name: Install pynvim into uv venv for neovim
+- name: Install pynvim into Neovim virtual environment
   ansible.builtin.command: "uv pip install pynvim --python {{ admin_home_dir }}/.cache/nvim/uv-python/bin/python"
 
 - name: Install uv tools
@@ -142,7 +142,7 @@
 - debug:
     var: uv_tools_output.stderr_lines
 
-- name: Install tmux tpm
+- name: Install tmux plugin manager
   ansible.builtin.shell: |
     source ~/.zshenv
     source "$ZDOTDIR/.zshrc"
@@ -169,7 +169,7 @@
     executable: /bin/zsh
     chdir: "{{ admin_home_dir }}"
 
-- name: Ensure systemd contianer user directory exists
+- name: Ensure systemd container user directory exists
   ansible.builtin.file:
     path: "{{ admin_home_dir }}/.config/containers/systemd"
     state: directory

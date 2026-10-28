@@ -13,21 +13,21 @@ router_vlans:
 net_services:
   # port: '22', proto: 'tcp'
   - { name: 'ssh' }
-  # port: '53', proto: 'upd' & 'tcp'
+  # port: '53', proto: 'udp' & 'tcp'
   - { name: 'dns' }
-  # port: '67', proto: 'upd'
+  # port: '67', proto: 'udp'
   - { name: 'dhcp' }
-  # adguard web port
-  - { port: '8080', proto: 'tcp'}
+  # AdGuard Home web port
+  - { port: '8080', proto: 'tcp' }
 
 lab_domain: "{{ lookup('env', 'TARGET_LAB_DOMAIN') | default('', true) }}"
 local_fwd_dns_port: "1053"
 
-# JSON array where each item: item: mac, ipv4; optional ref_name (comment) and name (DHCP hostname).
+# JSON array where each item has mac, ipv4; optional ref_name (comment) and name (DHCP hostname).
 # An unset/empty variable produces no reservations.
 dhcp_reservations: "{{ lookup('env', 'TARGET_DHCP_RESERVATIONS_JSON') | default('[]', true) | ansible.builtin.from_json }}"
 
-# PXE config on dnsmaq
+# PXE configuration for dnsmasq
 pxe_server_ref: "{{ lookup('env', 'TARGET_PXE_SERVER_REF') }}"
 pxe_server_matches: >-
   {{
@@ -38,12 +38,12 @@ pxe_server_matches: >-
   }}
 pxe_server_ip: "{{ pxe_server_matches[0].ipv4 }}"
 
-# Adguard
+# AdGuard Home
 adguard_admin: "{{ lookup('env', 'TARGET_ADGUARD_ADMIN') | default('', true) }}"
 adguard_admin_pass: "{{ lookup('env', 'TARGET_ADGUARD_ADMIN_PASS') | default('', true) }}"
 adguard_web_port: 8080
 
-# wireguard
+# WireGuard
 wg_server_port: "{{ lookup('env', 'TARGET_WIREGUARD_PORT') | default('', true) }}"
 wg_server_priv_key: "{{ lookup('env', 'TARGET_WIREGUARD_PRIV_KEY') | default('', true) }}"
 wg_server_ip: "10.100.0.1"

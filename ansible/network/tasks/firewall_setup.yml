@@ -1,5 +1,5 @@
 ---
-- name: Deny unecessary ports on public zone
+- name: Deny unnecessary ports on public zone
   ansible.posix.firewalld:
     zone: public
     service: "{{ item.name | default(omit) }}"
@@ -11,7 +11,7 @@
     - { name: 'cockpit' }
   when: ansible_facts['os_family'] == "RedHat"
 
-- name: Enable Masquerading (NAT) on public zone
+- name: Enable masquerading (NAT) on public zone
   ansible.posix.firewalld:
     zone: public
     masquerade: true

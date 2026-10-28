@@ -1,10 +1,10 @@
 ---
-- name: Create|Update the user group of {{ admin_username }}
+- name: Ensure administrator group exists for {{ admin_username }}
   ansible.builtin.group:
     name: "{{ admin_username }}"
     state: present
 
-- name: Create|Update the user {{ admin_username }}
+- name: Ensure administrator account exists for {{ admin_username }}
   ansible.builtin.user:
     name: "{{ admin_username }}"
     password: "{{ admin_password_hash }}"
@@ -15,7 +15,7 @@
     state: present
 
 - name: Deploy SSH public key
-  ansible.builtin.authorized_key:
+  ansible.posix.authorized_key:
     user: "{{ admin_username }}"
     state: present
     key: "{{ admin_ssh_pub_key }}"

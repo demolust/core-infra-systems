@@ -1,5 +1,5 @@
 ---
-- name: Gather user info (needed for systemd UIDs)
+- name: Gather user information for systemd UIDs
   ansible.builtin.getent:
     database: passwd
 
@@ -15,7 +15,7 @@
     label: "{{ item.src }}"
   register: user_app_configs
 
-- name: "Deploy {{ app.name }} Quadlet Templates"
+- name: "Deploy {{ app.name }} Quadlet files"
   ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "/var/lib/{{ app.user }}/.config/containers/systemd/{{ item.dest }}"
@@ -25,7 +25,7 @@
   loop: "{{ app.templates }}"
   register: app_deployment
 
-- name: "Reload and Restart {{ app.name }} Service"
+- name: "Reload systemd and restart {{ app.name }} service"
   become_user: "{{ app.user }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.getent_passwd[app.user][1] }}"

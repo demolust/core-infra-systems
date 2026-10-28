@@ -15,7 +15,7 @@
     state: present
     reload: true
 
-- name: Ensure dedicated wireguard zone exists
+- name: Ensure dedicated WireGuard zone exists
   ansible.posix.firewalld:
     zone: wireguard
     state: present
@@ -40,7 +40,7 @@
     - { src: 'firewalld_wg_to_wan_lan.xml.j2', dest: 'wg_to_wan_lan.xml' }
   notify: Reload firewalld
 
-- name: Allow necessary ports on wireguard zone
+- name: Allow necessary ports on WireGuard zone
   ansible.posix.firewalld:
     zone: wireguard
     service: "{{ item.name | default(omit) }}"
@@ -51,7 +51,7 @@
   loop: "{{ net_services }}"
   when: ansible_facts['os_family'] == "RedHat"
 
-- name: Allow ICMP on wireguard zone
+- name: Allow ICMP on WireGuard zone
   ansible.posix.firewalld:
     zone: wireguard
     protocol: icmp

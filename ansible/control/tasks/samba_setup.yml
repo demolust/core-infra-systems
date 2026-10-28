@@ -9,7 +9,7 @@
     update_cache: true
   when: ansible_facts['os_family'] == "RedHat"
 
-- name: Generate smb configuration from template
+- name: Generate Samba configuration from template
   ansible.builtin.template:
     src: smb.conf.j2
     dest: "/etc/samba/smb.conf"

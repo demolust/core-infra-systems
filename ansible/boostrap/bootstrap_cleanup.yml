@@ -1,21 +1,21 @@
 ---
-- name: Cleanup of the PXE setup
+- name: Clean up bootstrap PXE environment
   hosts: localhost
   connection: local
   gather_facts: true
 
   tasks:
-    - name: Stop Podman Services
+    - name: Stop Podman services
       block:
-        - name: Elevate for 'Stop Podman Services'
+        - name: Stop Podman services with privilege escalation
           ansible.builtin.import_tasks: tasks/container_cln.yml
       become: true
 
-    - name: Clean up Host Networking and Security
+    - name: Clean up host networking and security
       block:
-        - name: Elevate for 'Clean up Host Networking and Security'
+        - name: Clean up host networking and security with privilege escalation
           ansible.builtin.import_tasks: tasks/host_setup_cln.yml
       become: true
 
-    - name: Cleanup Directory Structure
+    - name: Clean up directory structure
       ansible.builtin.import_tasks: tasks/dir_structure_cln.yml

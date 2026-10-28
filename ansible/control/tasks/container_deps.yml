@@ -9,7 +9,7 @@
     update_cache: true
   when: ansible_facts['os_family'] == "RedHat"
 
-- name: Ensure root systemd contianer directory exists
+- name: Ensure root systemd container directory exists
   ansible.builtin.file:
     path: "/etc/containers/systemd"
     state: directory
@@ -73,17 +73,17 @@
     state: started
     enabled: true
 
-- name: Get Network Subnet and Mask
+- name: Gather network subnet and mask
   ansible.builtin.shell: "ip route show dev {{ pxe_interface }} | grep 'proto kernel' | awk '{print $1}'"
   register: network_info
   changed_when: false
 
-- name: Get Network IP
+- name: Gather network IP address
   ansible.builtin.shell: "ip -o -4 addr show {{ pxe_interface }} | awk '{print $4}'"
   register: ip_info
   changed_when: false
 
-- name: Set facts for subnet and mask
+- name: Set network address facts
   ansible.builtin.set_fact:
     remote_subnet: "{{ network_info.stdout.split('/')[0] }}"
     remote_netmask: "{{ network_info.stdout.split('/')[1] }}"

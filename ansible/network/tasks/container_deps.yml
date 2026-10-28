@@ -15,7 +15,7 @@
     state: started
     enabled: true
 
-- name: Ensure root systemd contianer directory exists
+- name: Ensure root systemd container directory exists
   ansible.builtin.file:
     path: "/etc/containers/systemd"
     state: directory

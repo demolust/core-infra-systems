@@ -8,7 +8,7 @@ interface=lan0.{{ vlan.id }}
 {% endfor %}
 bind-dynamic
 
-# Enable local DNS functionality only a specific port to allow fowarding FQDN to the DNS server
+# Enable local DNS on a specific port to forward FQDN queries to the DNS server
 port={{ local_fwd_dns_port }}
 domain={{ lab_domain }}
 local=/{{ lab_domain }}/

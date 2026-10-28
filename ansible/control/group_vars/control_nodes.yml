@@ -110,7 +110,7 @@ data_directories:
     group: "{{ system_groups.share }}"
     mode: '2775'
 
-    # Paths to specific shares in samba_custom_shares
+  # Paths to specific shares in samba_custom_shares
   - paths:
       - "{{ samba_data_share_dir }}/general"
       - "{{ navidrome_music_dir }}"
@@ -125,7 +125,7 @@ data_directories:
     group: "root"
     mode: '0755'
 
-    # Runner
+  # Runner
   - paths:
       - "{{ runner_base_dir }}"
       - "{{ runner_env_dir }}"
@@ -139,7 +139,7 @@ data_directories:
     group: "{{ system_groups.navidrome }}"
     mode: '0775'
 
-  # Unifi (Grabs all paths from the dict automatically)
+  # UniFi (grabs all paths from the dictionary automatically)
   - paths: "{{ unifi_paths.values() | list }}"
     owner: "{{ system_users.unifi.name }}"
     group: "{{ system_groups.unifi }}"
@@ -166,7 +166,7 @@ data_directories:
     group: "wheel"
     mode: '0755'
 
-# Gitops tooling
+# GitOps tooling
 gitops_tooling:
   repo_path: "{{ iac_repo_base_dir }}"
   ansible:
@@ -212,7 +212,7 @@ navidrome_port: "4533"
 pxe_http_port: "80"
 pxe_interface: "{{ lookup('env', 'TARGET_PXE_INT') | default('', true) }}"
 
-# UNIFI Controller data
+# UniFi controller data
 unifi_env_file: "{{ unifi_paths.env }}/env"
 unifi_ports:
   - { host: 8443, container: 8443, proto: tcp }

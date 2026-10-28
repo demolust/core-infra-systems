@@ -1,5 +1,5 @@
 ---
-- name: Set base envs
+- name: Define installation media variables
   ansible.builtin.set_fact:
     os_base: "AlmaLinux"
     base_url: "repo.almalinux.org/almalinux"
@@ -17,22 +17,22 @@
         shim: "BOOTAA64.EFI"
         ipxe_arch: "arm64-efi"
 
-- name: Set compund variables A
+- name: Define installation ISO filename
   ansible.builtin.set_fact:
     remote_iso_name: "{{ os_base }}-{{ version }}-latest-{{ selected_arch }}-{{ iso_type }}.iso"
 
-- name: Set compund variables B
+- name: Define installation ISO path
   ansible.builtin.set_fact:
     dest_path: "{{ base_dir }}/isos/{{ remote_iso_name }}"
 
-- name: Extract SHA256 hash for the ISO
+- name: Extract SHA-256 hash for the ISO
   ansible.builtin.set_fact:
     target_hash: >-
       {{ lookup('url', 'https://{}/{}/isos/{}/CHECKSUM'.format(base_url, version, selected_arch), split_lines=False)
         | regex_search('SHA256 \(' ~ (remote_iso_name | regex_escape) ~ '\) = ([a-f0-9]{64})', '\1')
         | first }}
 
-- name: Downloading the latest {{ os_base }} {{ version }} ISO
+- name: Download the latest {{ os_base }} {{ version }} ISO
   ansible.builtin.get_url:
     url: "https://{{ base_url }}/{{ version }}/isos/{{ selected_arch }}/{{ remote_iso_name }}"
     dest: "{{ dest_path }}"
@@ -45,7 +45,7 @@
   ansible.builtin.debug:
     msg: "ISO downloaded to {{ download_result.dest }}"
 
-- name: Extract Boot Files (Kernel & Initrd)
+- name: Extract boot files (kernel and initrd)
   community.general.iso_extract:
     image: "{{ dest_path }}"
     dest: "{{ base_dir }}/tftp/{{ selected_arch }}"
@@ -55,7 +55,7 @@
       - "{{ boot_files[selected_arch].efi_loader }}"
       - "{{ boot_files[selected_arch].grub_efi }}"
 
-- name: Unpack Full ISO for HTTP Installation
+- name: Unpack full ISO for HTTP installation
   ansible.builtin.command:
     cmd: "7z x {{ dest_path }} -o{{ base_dir }}/www/{{ selected_arch }}/ -y"
   args:
@@ -68,12 +68,11 @@
     recurse: true
   register: found_directories
 
-- name: Set correct permissions of the directories
+- name: Set directory permissions
   ansible.builtin.file:
     path: "{{ item.path }}"
-    mode: 0755
-  loop:
-    "{{ found_directories.files }}"
+    mode: "0755"
+  loop: "{{ found_directories.files }}"
 
 - name: Download the latest iPXE files
   ansible.builtin.get_url:

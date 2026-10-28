@@ -6,7 +6,7 @@
     mode: "{{ item.mode | default('0664') }}"
     owner: "root"
     group: "wheel"
-    force: "{{ item.force | default('true') }}"
+    force: "{{ item.force | default(true) }}"
   loop: "{{ app.configs | default([]) }}"
   register: configs
 

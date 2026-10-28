@@ -1,5 +1,5 @@
 ---
-- name: Network Nodes Setup
+- name: Configure network node
   hosts: network_nodes
   become: true
   gather_facts: true
@@ -7,14 +7,14 @@
     ansible_python_interpreter: /usr/bin/python3
 
   pre_tasks:
-  - name: Pre setup
-    ansible.builtin.include_tasks: tasks/pre_setup.yml
+    - name: Prepare network setup
+      ansible.builtin.include_tasks: tasks/pre_setup.yml
 
   tasks:
-    - name: System setup
+    - name: Configure system
       ansible.builtin.include_tasks: tasks/system_setup.yml
 
-    - name: Base network setup
+    - name: Configure base network
       ansible.builtin.include_tasks: tasks/network_setup.yml
 
     - name: Prepare container dependencies
@@ -27,12 +27,12 @@
         loop_var: app
         label: "{{ app.name }}"
 
-    - name: Fiewall setup
+    - name: Configure firewall
       ansible.builtin.include_tasks: tasks/firewall_setup.yml
 
-    - name: VPN setup
+    - name: Configure VPN
       ansible.builtin.include_tasks: tasks/vpn_setup.yml
 
   handlers:
-    - name: Load Handlers
+    - name: Load network node handlers
       ansible.builtin.import_tasks: handlers/handlers.yml

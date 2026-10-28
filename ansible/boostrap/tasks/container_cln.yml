@@ -1,5 +1,5 @@
 ---
-- name: Stop and Remove PXE Containers
+- name: Stop and remove PXE containers
   containers.podman.podman_container:
     name: "{{ item }}"
     state: absent
@@ -8,7 +8,7 @@
     - pxe_tftp
     - pxe_http
 
-- name: Remove the PXE Pod
+- name: Remove the PXE pod
   containers.podman.podman_pod:
     name: pxe_pod
     state: absent
