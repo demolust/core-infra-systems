@@ -22,9 +22,8 @@
     daemon_reload: true
   when: quadlets.changed
 
-- name: "Restart {{ app.name }} when files changed"
+- name: "Ensure {{ app.name }} service is running"
   ansible.builtin.systemd:
     name: "{{ app.service }}"
-    state: restarted
+    state: "{{ 'restarted' if (quadlets.changed or configs.changed) else 'started' }}"
     enabled: true
-  when: quadlets.changed or configs.changed

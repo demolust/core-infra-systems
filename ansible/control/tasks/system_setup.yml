@@ -336,6 +336,13 @@
     group: root
     mode: '0644'
 
+- name: Ensure firewalld is enabled and running
+  ansible.builtin.systemd:
+    name: firewalld
+    state: started
+    enabled: true
+  when: ansible_facts['os_family'] == "RedHat"
+
 - name: Allow Samba service via firewalld
   ansible.posix.firewalld:
     service: samba

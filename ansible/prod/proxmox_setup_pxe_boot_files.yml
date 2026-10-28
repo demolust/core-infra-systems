@@ -32,9 +32,6 @@
     proxmox_country: "{{ lookup('env', 'PROXMOX_COUNTRY') }}"
     proxmox_timezone: "{{ lookup('env', 'PROXMOX_TIMEZONE') }}"
     proxmox_mailto: "{{ lookup('env', 'PROXMOX_MAILTO') }}"
-    # JSON object keyed by ref_name. Each host supplies arch, keyboard,
-    # root_password_hash, ssh_keys, filesystem, disks;
-    # zfs_raid is optional (required when using ZFS).
     proxmox_settings: "{{ lookup('env', 'PROXMOX_SETTINGS_JSON') | ansible.builtin.from_json }}"
 
   tasks:

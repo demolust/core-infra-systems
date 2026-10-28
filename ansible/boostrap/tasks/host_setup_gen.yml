@@ -46,6 +46,12 @@
   loop: "{{ pxe_services }}"
   when: ansible_facts['os_family'] == "Debian"
 
+- name: Ensure firewalld is running
+  ansible.builtin.systemd:
+    name: firewalld
+    state: started
+  when: ansible_facts['os_family'] == "RedHat"
+
 - name: Open ports via firewalld
   ansible.posix.firewalld:
     service: "{{ item.name | default(omit) }}"

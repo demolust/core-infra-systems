@@ -59,6 +59,13 @@
     update_cache: true
   when: ansible_facts['os_family'] == "RedHat"
 
+- name: Ensure firewalld is enabled and running
+  ansible.builtin.systemd:
+    name: firewalld
+    state: started
+    enabled: true
+  when: ansible_facts['os_family'] == "RedHat"
+
 - name: Disable systemd-resolved DNS stub listener
   ansible.builtin.lineinfile:
     path: /etc/systemd/resolved.conf

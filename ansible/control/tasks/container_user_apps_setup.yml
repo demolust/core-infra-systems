@@ -13,7 +13,7 @@
   loop: "{{ app.configs | default([]) }}"
   loop_control:
     label: "{{ item.src }}"
-  register: user_app_configs
+  register: configs
 
 - name: "Deploy {{ app.name }} Quadlet files"
   ansible.builtin.template:
@@ -23,19 +23,26 @@
     group: "{{ app.group }}"
     mode: '0644'
   loop: "{{ app.templates }}"
-  register: app_deployment
+  register: quadlets
 
-- name: "Reload systemd and restart {{ app.name }} service"
+- name: Reload systemd to generate service from Quadlet
+  become_user: "{{ app.user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.getent_passwd[app.user][1] }}"
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+  when: quadlets.changed
+
+- name: "Ensure {{ app.name }} service is running"
   become_user: "{{ app.user }}"
   environment:
     XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.getent_passwd[app.user][1] }}"
   ansible.builtin.systemd:
     name: "{{ app.service }}"
-    state: restarted
+    state: "{{ 'restarted' if (quadlets.changed or configs.changed) else 'started' }}"
     enabled: true
-    daemon_reload: true
     scope: user
-  when: app_deployment.changed or user_app_configs.changed
 
 - name: Enable podman-auto-update timer
   become_user: "{{ app.user }}"
@@ -43,6 +50,6 @@
     XDG_RUNTIME_DIR: "/run/user/{{ ansible_facts.getent_passwd[app.user][1] }}"
   ansible.builtin.systemd:
     name: "podman-auto-update.timer"
-    state: restarted
+    state: started
     enabled: true
     scope: user
