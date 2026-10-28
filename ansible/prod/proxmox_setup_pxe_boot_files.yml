@@ -1,0 +1,54 @@
+---
+- name: Deploy DHCP reservations
+  hosts: network_nodes
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../network/group_vars/all.yml
+    - ../network/group_vars/network_nodes.yml
+
+  tasks:
+    - name: Update reservations using the network application deployment
+      ansible.builtin.import_tasks: ../network/tasks/container_apps_setup.yml
+      vars:
+        app:
+          name: dnsmasq
+          service: "{{ (quadlet_services | selectattr('name', 'equalto', 'dnsmasq') | first).service }}"
+          configs:
+            - src: "{{ playbook_dir }}/../network/templates/dhcp-hosts.conf.j2"
+              dest: "{{ dnsmasq_config_dir }}/dhcp-hosts.conf"
+
+- name: Deploy Proxmox boot files
+  hosts: control_nodes
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../control/group_vars/all.yml
+    - ../network/group_vars/network_nodes.yml
+    - ../control/group_vars/control_nodes.yml
+
+  vars:
+    proxmox_ref_pattern: "{{ lookup('env', 'PROXMOX_REF_PATTERN') }}"
+    proxmox_country: "{{ lookup('env', 'PROXMOX_COUNTRY') }}"
+    proxmox_timezone: "{{ lookup('env', 'PROXMOX_TIMEZONE') }}"
+    proxmox_mailto: "{{ lookup('env', 'PROXMOX_MAILTO') }}"
+    # JSON object keyed by ref_name. Each host supplies arch, keyboard,
+    # root_password_hash, ssh_keys, filesystem, disks;
+    # zfs_raid is optional (required when using ZFS).
+    proxmox_settings: "{{ lookup('env', 'PROXMOX_SETTINGS_JSON') | ansible.builtin.from_json }}"
+
+  tasks:
+    - name: Generate files for each selected Proxmox host
+      ansible.builtin.include_tasks: tasks/proxmox_host_boot_files.yml
+      loop: >-
+        {{
+          dhcp_reservations
+          | selectattr('ref_name', 'defined')
+          | selectattr('ref_name', 'match', proxmox_ref_pattern)
+          | list
+        }}
+      loop_control:
+        loop_var: reservation
+        label: "{{ reservation.ref_name }}"
+      vars:
+        proxmox_host: "{{ proxmox_settings[reservation.ref_name] }}"

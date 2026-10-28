@@ -1,0 +1,19 @@
+# Managed by Ansible
+[global]
+keyboard = {{ proxmox_host.keyboard | to_json }}
+country = {{ proxmox_country | to_json }}
+timezone = {{ proxmox_timezone | to_json }}
+mailto = {{ proxmox_mailto | to_json }}
+root-password-hashed = {{ proxmox_host.root_password_hash | to_json }}
+root-ssh-keys = {{ proxmox_host.ssh_keys | to_json }}
+fqdn.source = "from-dhcp"
+
+[network]
+source = "from-dhcp"
+
+[disk-setup]
+filesystem = {{ proxmox_host.filesystem | to_json }}
+disk-list = {{ proxmox_host.disks | to_json }}
+{% if proxmox_host.zfs_raid is defined %}
+zfs.raid = {{ proxmox_host.zfs_raid | to_json }}
+{% endif %}
