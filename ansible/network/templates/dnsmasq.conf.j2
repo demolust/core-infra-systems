@@ -15,8 +15,11 @@ local=/{{ lab_domain }}/
 dhcp-option=option:domain-search,{{ lab_domain }}
 interface-name={{ ansible_facts['hostname'] }}.{{ lab_domain }},lan0.10/4
 
-# Load static DHCP reservations and persist dynamic leases
+# Load static DHCP records reservations
 dhcp-hostsfile=/etc/dnsmasq.d/dhcp-hosts.conf
+# Load static DNS records reservations
+addn-hosts=/etc/dnsmasq.d/dns-hosts.conf
+# Load persist dynamic leases
 dhcp-leasefile=/var/lib/dnsmasq/dnsmasq.leases
 
 {% for vlan in router_vlans %}

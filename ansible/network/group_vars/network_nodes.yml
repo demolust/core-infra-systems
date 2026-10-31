@@ -49,6 +49,7 @@ wg_server_mask: "24"
 wg_network_cidr: "{{ wg_server_ip | regex_replace('\\.\\d+$', '.0/24') }}"
 wireguard_peers: "{{ lookup('env', 'TARGET_WIREGUARD_PEERS_JSON') | default('[]', true) | ansible.builtin.from_json }}"
 
+# DuckDNS settings
 duckdns_domain: "{{ lookup('env', 'TARGET_DDNS_DOMAIN') | default('', true) }}"
 duckdns_token: "{{ lookup('env', 'TARGET_DDNS_TOKEN') | default('', true) }}"
 
@@ -59,6 +60,7 @@ quadlet_services:
     configs:
       - { src: "dnsmasq.conf.j2", dest: "{{ dnsmasq_config_dir }}/dnsmasq.conf" }
       - { src: "dhcp-hosts.conf.j2", dest: "{{ dnsmasq_config_dir }}/dhcp-hosts.conf" }
+      - { src: "dns-hosts.conf.j2", dest: "{{ dnsmasq_config_dir }}/dns-hosts.conf" }
     templates:
       - { src: "dnsmasq.container.j2", dest: "dnsmasq.container" }
 

@@ -17,6 +17,8 @@
           configs:
             - src: "{{ playbook_dir }}/../network/templates/dhcp-hosts.conf.j2"
               dest: "{{ dnsmasq_config_dir }}/dhcp-hosts.conf"
+            - src: "{{ playbook_dir }}/../network/templates/dns-hosts.conf.j2"
+              dest: "{{ dnsmasq_config_dir }}/dns-hosts.conf"
 
 - name: Deploy Proxmox boot files
   hosts: control_nodes

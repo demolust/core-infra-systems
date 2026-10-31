@@ -1,0 +1,9 @@
+# Static DNS records reservations - Managed by Ansible/Jinja2
+{% for reservation in dhcp_reservations %}
+{% if reservation.name | default('') %}
+{% if reservation.ref_name | default('') %}
+# {{ reservation.ref_name }}
+{% endif %}
+{{ reservation.ipv4 }} {{ reservation.name }}.{{ lab_domain }} {{ reservation.name }}
+{% endif %}
+{% endfor %}
