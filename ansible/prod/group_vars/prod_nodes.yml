@@ -1,0 +1,5 @@
+---
+data_path: "/data"
+data_fs_type: "ext4"
+disk_pattern: "pci-*-ata-1"
+

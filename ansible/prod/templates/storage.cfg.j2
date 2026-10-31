@@ -1,0 +1,15 @@
+dir: local
+  path /var/lib/vz
+  content iso,vztmpl,backup,import
+
+lvmthin: local-lvm
+  thinpool data
+  vgname pve
+  content rootdir,images
+
+# New device
+dir: sata-local
+  path {{ data_path }}
+  content images,iso,vztmpl,snippets
+  is_mountpoint 1
+  shared 0

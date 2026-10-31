@@ -1,0 +1,126 @@
+---
+- name: Gather user information for systemd UIDs
+  ansible.builtin.getent:
+    database: passwd
+
+- name: Gather current architecture
+  ansible.builtin.shell: "uname -m"
+  register: arch
+  changed_when: false
+
+- name: Set architecture fact
+  ansible.builtin.set_fact:
+    current_arch: "{{ arch.stdout }}"
+
+- name: Configure Proxmox VE repository
+  ansible.builtin.deb822_repository:
+    name: pve-no-subscription
+    types: deb
+    uris: http://download.proxmox.com/debian/pve
+    suites: "{{ ansible_facts['distribution_release'] }}"
+    components: pve-no-subscription
+    signed_by: /usr/share/keyrings/proxmox-archive-keyring.gpg
+    enabled: true
+    state: present
+
+- name: Disable Proxmox Enterprise repository
+  ansible.builtin.deb822_repository:
+    name: pve-enterprise
+    types: deb
+    uris: https://enterprise.proxmox.com/debian/pve
+    suites: "{{ ansible_facts['distribution_release'] }}"
+    components: pve-enterprise
+    signed_by: /usr/share/keyrings/proxmox-archive-keyring.gpg
+    enabled: false
+    state: present
+
+- name: Disable Proxmox Ceph repository
+  ansible.builtin.deb822_repository:
+    name: ceph
+    types: deb
+    uris: https://enterprise.proxmox.com/debian/ceph-squid
+    suites: "{{ ansible_facts['distribution_release'] }}"
+    components: enterprise
+    signed_by: /usr/share/keyrings/proxmox-archive-keyring.gpg
+    enabled: false
+    state: present
+
+- name: Install dependencies (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name:
+      - vim
+      - parted
+      - fwupd
+      - udisks2
+    state: present
+    update_cache: true
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Check if {{ data_path }} is already mounted as a separate partition
+  ansible.builtin.set_fact:
+    data_is_mounted: >-
+      {{ ansible_facts["mounts"] | selectattr('mount', 'equalto', data_path) | list | length > 0 }}
+
+- name: Find the first SATA data disk via by-path
+  ansible.builtin.shell: "ls -d /dev/disk/by-path/{{ disk_pattern }} 2>/dev/null || true"
+  register: disk_search_result
+  changed_when: false
+  when: not data_is_mounted
+
+- name: Set the target device path
+  ansible.builtin.set_fact:
+    target_device: "{{ disk_search_result.stdout | trim }}"
+  when:
+    - not data_is_mounted
+    - disk_search_result.stdout | trim != ''
+
+- name: Fail if no data disk was detected on ata-1
+  ansible.builtin.fail:
+    msg: "No disk found matching /dev/disk/by-path/{{ disk_pattern }}. Check hardware connections."
+  when: not data_is_mounted and (target_device is not defined or target_device == '')
+
+- name: Check whether the data disk is in use
+  ansible.builtin.command: "lsblk --noheadings --output MOUNTPOINTS {{ target_device }}"
+  register: data_disk_mounts
+  changed_when: false
+  when: not data_is_mounted
+
+- name: Fail if the target disk is already in use
+  ansible.builtin.fail:
+    msg: "The device {{ target_device }} has active mount points: {{ data_disk_mounts.stdout }}"
+  when: not data_is_mounted and (data_disk_mounts.stdout | trim != '')
+
+- name: Perform setup if the disk is clean and unmounted
+  when: not data_is_mounted and (data_disk_mounts.stdout | trim == '')
+  block:
+    - name: Create partition on the data disk
+      community.general.parted:
+        device: "{{ target_device }}"
+        number: 1
+        state: present
+        fs_type: "{{ data_fs_type }}"
+
+    - name: Ensure the target device has an {{ data_fs_type }} filesystem
+      community.general.filesystem:
+        fstype: "{{ data_fs_type }}"
+        dev: "{{ target_device }}-part1"
+      register: format_status
+
+    - name: Get UUID of the new partition
+      ansible.builtin.command: "blkid -s UUID -o value {{ target_device }}-part1"
+      register: disk_uuid
+      changed_when: false
+
+    - name: Mount the volume persistently to {{ data_path }} and update /etc/fstab
+      ansible.posix.mount:
+        path: "{{ data_path }}"
+        src: "UUID={{ disk_uuid.stdout }}"
+        fstype: "{{ data_fs_type }}"
+        opts: defaults,_netdev,nofail
+        state: mounted
+        passno: '2'
+
+- name: Deploy proxmox storage configuration files
+  ansible.builtin.template:
+    src: templates/storage.cfg.j2
+    dest: /etc/pve/storage.cfg
