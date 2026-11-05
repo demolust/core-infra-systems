@@ -1,3 +1,4 @@
+# PE defaults
 dir: local
   path /var/lib/vz
   content iso,vztmpl,backup,import
@@ -7,8 +8,8 @@ lvmthin: local-lvm
   vgname pve
   content rootdir,images
 
-# New device
-dir: sata-local
+# Sata device (local access) ata-1 port
+dir: {{ pe_storage_name }}
   path {{ data_path }}
   content images,iso,vztmpl,snippets
   is_mountpoint 1
