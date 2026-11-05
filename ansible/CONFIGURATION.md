@@ -2,6 +2,8 @@
 
 This explains the purpose of the configuration, how the less obvious settings work, and how the services fit together. The deployed configuration in `control`, `network`, `prod`, and `boostrap` is described below. Package installation and SSH hardening are summarized; networking, identity mapping, permissions, and provisioning receive more detail.
 
+Guest-facing Proxmox network profiles, combinations, bastion SSH access, and general API/template plans are documented in [PE_CONFIGURATION.md](PE_CONFIGURATION.md). This file retains infrastructure configuration and deployment details.
+
 Addresses and ports describe repository defaults. Software versions are selected in the linked variables, image definitions, and build tasks rather than repeated here. Hardware details and the Samba deployment decision include the operator's context.
 
 ## Control node
@@ -246,7 +248,8 @@ The router's dnsmasq leases addresses and advertises the control node's PXE boot
 | --- | --- |
 | [dnsmasq.conf.j2](network/templates/dnsmasq.conf.j2) | Listens on loopback and the generated VLAN interfaces. Per-VLAN `dhcp-range=set:vlan<id>,...` both selects a pool and sets a tag; matching `dhcp-option=tag:vlan<id>,...` sends that pool's gateway and DNS address. Leases last 24 hours. Architecture and iPXE user-class tags select control-node boot files through `dhcp-boot`. Advertises the lab search domain and MTU 1460. `bind-dynamic` accommodates interface/address changes. |
 | [dhcp-hosts.conf.j2](network/templates/dhcp-hosts.conf.j2) | Converts reservations from `TARGET_DHCP_RESERVATIONS_JSON` into MAC/address entries with optional hostnames/comments. A fixed lease makes a device's address predictable; supplying DNS through DHCP does not independently create arbitrary DNS records. |
-| [dnsmasq.container.j2](network/templates/dnsmasq.container.j2) | Runs with host networking to reach VLAN interfaces and DHCP broadcasts, mounts configuration read-only, and persists leases under `/data/state/dnsmasq`. Adds the networking capabilities described below. |
+| [dns-hosts.conf.j2](network/templates/dns-hosts.conf.j2) | Generates persistent `IP FQDN short-name` records from the same reservation facts, only for entries with a nonempty `name`. The optional `ref_name` is a comment. These records survive DHCP lease expiration. |
+| [dnsmasq.container.j2](network/templates/dnsmasq.container.j2) | Runs with host networking to reach VLAN interfaces and DHCP broadcasts, mounts the main configuration, DHCP reservations, and DNS hosts file read-only, and persists leases under `/data/state/dnsmasq`. Adds the networking capabilities described below. |
 | [AdGuardHome.yaml.j2](network/templates/AdGuardHome.yaml.j2) | Binds DNS on router/VLAN/VPN/loopback addresses at port 53 and restricts allowed clients. Uses encrypted public upstreams and a lab-domain route to local dnsmasq. Configures the UI account, filters, cache, and schema expected by the application. |
 | [adguard.container.j2](network/templates/adguard.container.j2) | Uses host networking for those host IP bindings and persists both AdGuard configuration and work data. |
 
@@ -259,7 +262,7 @@ DNS flow:
 - **Local names:** client → AdGuard at the VLAN gateway on port 53 → dnsmasq at `127.0.0.1:1053` for the lab domain → reply back through AdGuard.
 - **Public names:** client → AdGuard → Quad9/Cloudflare DNS-over-HTTPS → reply back to the client.
 
-dnsmasq's `domain` and `local=/.../` define local-domain handling, while DHCP lease/reservation names supply local host identities. `interface-name` associates the router's own lab name with `lan0.10`'s IPv4 address. dnsmasq's nonstandard DNS port leaves standard port 53 free for AdGuard. See [dnsmasq DHCP, tags, and local DNS](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html).
+dnsmasq's `domain` and `local=/.../` define local-domain handling. `addn-hosts=/etc/dnsmasq.d/dns-hosts.conf` loads the generated persistent records independently of DHCP leases; unnamed reservations are skipped. Both the network setup and production provisioning workflow generate DHCP and DNS outputs from the same reservation facts. The first deployment of this feature must use network setup to install the main directive and container mount before production provisioning can update the additional file alone. `interface-name` associates the router's own lab name with `lan0.10`'s IPv4 address. dnsmasq's nonstandard DNS port leaves standard port 53 free for AdGuard. See [dnsmasq DHCP, tags, and local DNS](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html).
 
 AdGuard's bootstrap resolvers resolve the public upstream servers' hostnames. Parallel upstream mode queries multiple resolvers; optimistic caching can answer with cached data while refreshing it. The template enables a 32 MiB cache, disables query rate limiting for bursts, and enables AdGuard/AdAway filters. See [AdGuard configuration fields](https://github.com/AdguardTeam/AdGuardHome/wiki/Configuration).
 
@@ -297,7 +300,8 @@ Run the network and control setup first, then [control/proxmox_iso_setup.yml](co
 
 | Input | Role |
 | --- | --- |
-| `TARGET_DHCP_RESERVATIONS_JSON` | Complete reservation list, including existing infrastructure hosts. Each entry supplies `mac`, `ipv4`, and a `ref_name`; `name` supplies the short DHCP hostname for Proxmox. This replaces `dhcp-hosts.conf`, so omitted reservations are removed from that file. |
+| `TARGET_DHCP_RESERVATIONS_JSON` | Complete reservation list, including existing infrastructure hosts. Each entry supplies `mac`, `ipv4`, and a `ref_name`; `name` supplies the short DHCP hostname and, when nonempty, a persistent DNS record. This replaces both `dhcp-hosts.conf` and `dns-hosts.conf`, so omitted entries are removed from those generated files. |
+| `TARGET_LAB_DOMAIN` | Domain used to construct persistent guest/host FQDNs. Set it in the provisioning environment as well as the network setup environment; values must match. |
 | `TARGET_PXE_SERVER_REF` | Exact, case-sensitive `ref_name` of the control node's reservation. Its IPv4 address supplies the generated iPXE scripts' HTTP server address. |
 | `PROXMOX_REF_PATTERN` | Regular expression applied to reservation `ref_name` values using Ansible's `match` test, which matches from the start. Use anchors such as `^prod[0-9]+$` to select complete names. Reservations without `ref_name` are excluded. |
 | `PROXMOX_COUNTRY`, `PROXMOX_TIMEZONE`, `PROXMOX_MAILTO` | Shared installer country code, IANA timezone, and notification email address. |
@@ -310,18 +314,118 @@ source ./.env
 ansible-playbook -i ../control/inventories/control_nodes.yml -i ../network/inventories/network_nodes.yml proxmox_setup_pxe_boot_files.yml
 ```
 
-The first play reuses the network application's deployment task to render only `dhcp-hosts.conf`, enable dnsmasq, and ensure it is running. A changed reservation file triggers a restart; otherwise, a stopped dnsmasq service is started without restarting an already running service. It does not deploy dnsmasq Quadlets or regenerate the main dnsmasq configuration. Keep `TARGET_PXE_SERVER_REF` aligned with the existing network configuration; changing the boot-server reservation address also requires rerunning network setup to update its DHCP boot instructions.
+The first play reuses the network application's deployment task to render `dhcp-hosts.conf` and `dns-hosts.conf`, enable dnsmasq, and ensure it is running. Changes to either file trigger a restart; otherwise, a stopped dnsmasq service is started without restarting an already running service. It does not deploy dnsmasq Quadlets or regenerate the main dnsmasq configuration. Keep `TARGET_PXE_SERVER_REF` aligned with the existing network configuration; changing the boot-server reservation address also requires rerunning network setup to update its DHCP boot instructions.
 
 The second play selects reservations and calls [proxmox_host_boot_files.yml](prod/tasks/proxmox_host_boot_files.yml) for each match. Filenames use the reservation MAC lowercased and converted from colon-separated to hyphen-separated form.
 
 | Template | Generated file and behavior |
 | --- | --- |
-| [proxmox_answer.toml.j2](prod/templates/proxmox_answer.toml.j2) | Writes `{{ pxe_base_dir }}/www/configs/proxmox/<mac>.toml` with shared locale/contact settings, the host's keyboard, hashed root password, root SSH keys, filesystem, and installation disks. Both hostname and network configuration come from DHCP; supply the reservation hostname and keep the lab domain configured on the network node. Disk names omit `/dev/`, for example `nvme0n1`. |
+| [proxmox_answer.toml.j2](prod/templates/proxmox_answer.toml.j2) | Writes `{{ pxe_base_dir }}/www/configs/proxmox/<mac>.toml` with shared locale/contact settings, the host's keyboard, hashed root password, root SSH keys, filesystem, and installation disks. The installer obtains hostname and network settings from DHCP; supply the reservation hostname and lab domain. The installed Proxmox host writes the received address/gateway as static configuration rather than continuing DHCP renewal. Disk names omit `/dev/`, for example `nvme0n1`. |
 | [proxmox_boot.ipxe.j2](prod/templates/proxmox_boot.ipxe.j2) | Writes `{{ pxe_base_dir }}/www/configs/ipxe/<mac>.ipxe`. Loads the selected architecture's `vmlinuz` with `proxmox-start-auto-installer`, then `initrd.img` and the rebuilt `proxmox_installer.iso`, presenting the ISO as `/proxmox.iso` to the installer. |
 
 At PXE boot, the control node's generic script chains the matching MAC script automatically. The installer assets then load over HTTP, and the embedded automatic-installer configuration directs the installer to POST system information to `/proxmox/answer`. The existing answer handler selects the corresponding MAC-named TOML file. This supplies the production installation path without adding a menu entry.
 
 **Booting this unattended installer can erase the selected installation disks.** Answer rendering suppresses Ansible logs and diffs, but the generated files are mode `0644` and served through the existing HTTP service. They contain password hashes and public keys. The playbook updates selected files without removing files for hosts no longer selected; remove obsolete answer and iPXE files explicitly, and disable or remove the installation script after provisioning to avoid a later PXE boot starting installation again.
+
+### Installed Proxmox host setup
+
+[prod/setup.yml](prod/setup.yml) configures installed `prod_nodes` over SSH. It imports [system_setup.yml](prod/tasks/system_setup.yml); storage settings live in [prod variables](prod/group_vars/prod_nodes.yml). The existing provisioning playbook remains responsible for the installer assets and network-node records, not post-install host configuration.
+
+| Configuration | Current behavior |
+| --- | --- |
+| APT sources | Enables `pve-no-subscription` for the installed Debian release and disables PVE Enterprise and Ceph Squid Enterprise. Debian sources remain separate. Disabling the Ceph repository does not create or remove a Ceph cluster. |
+| Host packages | Installs `vim`, `parted`, `fwupd`, and `udisks2`, refreshing the APT cache. The `deb822_repository` tasks also require the target Python Debian library. |
+| SATA selection | When `/data` is not mounted, discovers the disk using `/dev/disk/by-path/{{ disk_pattern }}`; the current pattern is `pci-*-ata-1`. Checks the selected device's reported mountpoints before partitioning. |
+| Filesystem and mount | Ensures partition 1 and ext4, reads its UUID from the `-part1` by-path link, and maintains the `/data` mount in `/etc/fstab`. Mounting follows filesystem setup even if formatting reports no change. Current options are `defaults,_netdev,nofail`; `_netdev` is unnecessary for local SATA storage. |
+| Storage registration | Renders [storage.cfg.j2](prod/templates/storage.cfg.j2) to `/etc/pve/storage.cfg` on every run, including when `/data` is already mounted. The template preserves the expected `local` and `local-lvm` definitions and adds the configured SATA storage ID. |
+
+The current disk workflow assumes the by-path pattern resolves to exactly the intended SATA disk and that the disk is appropriate to initialize. Its mountpoint check is not a filesystem-signature or partition-table validation, and it does not assert exactly one matching path. Inspect existing storage before first deployment. The earlier size-based selection is no longer used.
+
+From `prod/`, with the installed-node inventory populated:
+
+```sh
+ansible-playbook -i inventories/prod_nodes.yml setup.yml
+```
+
+The SATA disk has one data partition, mounted by filesystem UUID at `data_path` (currently `/data`). NVMe holds Proxmox and its original storage; NVMe capacity/brand differences do not require identical SATA layouts. The operator reported the data mount surviving reboot and `pvesm status` showing `sata-local` active on prod01. Apply the same validation to each host.
+
+| Storage definition | Backing storage and purpose |
+| --- | --- |
+| `local` | NVMe-backed `/var/lib/vz`; permits ISO images, container templates, backups, and imports. |
+| `local-lvm` | Installer-created `pve/data` thin pool on NVMe; permits guest/container disks. |
+| `{{ pe_storage_name }}` (currently `sata-local`) | Directory storage at `{{ data_path }}` on the SATA filesystem; permits VM images, ISOs, container templates, and snippets. `is_mountpoint 1` makes it unavailable when its mount is absent; `shared 0` keeps its meaning local to each node. |
+
+Proxmox creates its content layout under the registered path, including `images/<VMID>/`, `template/iso/`, `template/cache/`, and `snippets/`. The current SATA definition does not enable backup content. Do not create workload-specific host directories for Kubernetes or LocalStack. See [Directory storage behavior](https://github.com/proxmox/pve-docs/blob/master/pve-storage-dir.adoc) and [guest storage usage](PE_CONFIGURATION.md#guest-disks-templates-and-placement).
+
+`/etc/pve` is managed by Proxmox's cluster filesystem, so the template omits Unix owner/group/mode changes. This template owns the entire storage file: add any later NFS/SMB or other definitions to the managed configuration rather than expecting manual additions to survive a rerun. Once clustered, manage cluster-wide definitions once per cluster; each node still needs its own local mount.
+
+### Planned Proxmox guest-network integration
+
+[PE_CONFIGURATION.md](PE_CONFIGURATION.md#guest-network-profiles) defines how guests will use the four profiles, their combinations, and bastion access. Host-side networking automation is still to be added. The following examples describe the intended configuration rather than changes applied by `prod/setup.yml`.
+
+The installed host uses `enp1s0` as a manual bridge port and puts its management address on `vmbr0`. For prod01, the intended VLAN-aware extension is:
+
+```text
+iface enp1s0 inet manual
+
+auto vmbr0
+iface vmbr0 inet static
+    address 172.16.20.21/24
+    gateway 172.16.20.1
+    bridge-ports enp1s0
+    bridge-stp off
+    bridge-fd 0
+    bridge-vlan-aware yes
+    bridge-vids 110
+```
+
+Use each host's actual physical NIC and management address; prod02/prod03 use `172.16.20.22`/`172.16.20.23` in the current inventory. The bridge continues carrying untagged management traffic, mapped to native VLAN 20 by the switch. VLAN awareness additionally separates tagged VLAN 110 traffic; it does not assign the whole bridge to VLAN 110.
+
+| Integration point | Intended behavior |
+| --- | --- |
+| UniFi VLAN definition | Declare VLAN 110 as a switch network. Its VM subnet is `172.16.110.0/24`; a VLAN ID and an IP subnet are distinct settings. |
+| Physical switch ports 4, 5, 6 | Keep `native_vlan: "20"`, set `tagged: "custom"`, and allow `tagged_vlans: ["110"]`. Preserve each port's name and PoE choice. Allowing every VLAN is unnecessary. |
+| Proxmox `vmbr0` | Enable VLAN awareness and allow tagged VLAN 110 on each node. |
+| Guest virtual NIC | Terraform selects `vmbr0` and tag `110` for the cross-node private profile; ordinary VLAN 20 guest NICs remain untagged in this native-VLAN design. |
+| Proxmox host IPs | Keep management on VLAN 20. No `vmbr0.110` address is planned because a guest bastion supplies private SSH access. |
+| Netnode | Keep VLAN 110 out of `router_vlans` for the isolated profile. No router interface, DHCP scope, or gateway is needed for same-subnet private peer traffic. |
+
+The current local UniFi input already lists VLAN 110 and the custom tagged settings on ports 4–6; this records desired configuration, not proof of an applied switch state. See [port mapping](../unifi/terraform/switch_core_ports.tf) and [input schema](../unifi/terraform/variables.tf). A Terraform apply and host-network deployment/validation remain separate operations.
+
+A node-local private profile uses a portless bridge, with a provisional name such as `vmbr1`:
+
+```text
+auto vmbr1
+iface vmbr1 inet manual
+    bridge-ports none
+    bridge-stp off
+    bridge-fd 0
+```
+
+No host IP is needed on this bridge when SSH goes through a bastion VM. Bridges with the same name on different nodes remain isolated. A guest attached to VLAN 110 instead sends tagged traffic through the physical switch, allowing private peers on different nodes to communicate.
+
+Apply future host networking with the installed ifupdown2 workflow (`ifreload -a` for direct configuration changes), preserving management connectivity during deployment. See [Proxmox bridge/VLAN configuration](https://github.com/proxmox/pve-docs/blob/master/pve-network.adoc). NAT configuration is still undecided; implementing it will require a specific router location, subnet, forwarding/firewall policy, and DNS arrangement. SSH ProxyJump alone does not require NAT.
+
+### Planned Proxmox platform work
+
+The following items were discussed but are not implemented by the current production setup. Guest-facing usage and the general API/template plans are in [PE_CONFIGURATION.md](PE_CONFIGURATION.md).
+
+| Area | Plan and remaining decision |
+| --- | --- |
+| Cluster membership | Create the cluster on one node and join the others before provisioning guests on the joining nodes. Manage membership idempotently; choose a cluster name and communication addresses. |
+| Shared storage | Add an NFS or SMB/CIFS backend with selected content types and access from all relevant nodes. Server/export/share, storage ID, and placement remain undecided; existing control-node Samba service is not automatically Proxmox storage. |
+| HA | Enable recovery for selected guests after disk access/replication, network compatibility, capacity, and fencing behavior are established. Ordinary clustering does not replicate guest disks. |
+| API access | Create dedicated automation credentials and permissions for Terraform. Provider, exact role/privileges, and secret-delivery details remain to be selected. |
+| Templates | Establish one cloud-image template and validate cloning/cloud-init before adding more operating systems. Template identifiers and build details remain undecided. |
+| Backups and notifications | Choose an external destination, schedules, retention, restore validation, and notification delivery for backup, storage, and HA events. |
+| Monitoring | Add disk-health, capacity, temperature, and failed-service visibility according to the available hardware. |
+| Maintenance | Extend the shared update workflow with explicit cluster/guest checks and controlled node maintenance before HA use. |
+
+A three-node Proxmox cluster has distributed management and replicated `/etc/pve` configuration. Creating it on prod01 does not make that node a permanent primary. With equal votes, two connected nodes provide quorum. DNS and time synchronization support cluster operation; Corosync needs a reliable, low-latency network. See [Cluster Manager](https://github.com/proxmox/pve-docs/blob/master/pvecm.adoc).
+
+Shared storage can let another node restart a failed node's guest, but all required guest disks and network attachments must be available there. Proxmox mounts [NFS](https://github.com/proxmox/pve-docs/blob/master/pve-storage-nfs.adoc) and [SMB/CIFS](https://github.com/proxmox/pve-docs/blob/master/pve-storage-cifs.adoc) through their native backends; adding a share does not move existing guest disks. One share server remains a common failure point, and a live share is not a backup.
+
+Local ext4 Directory storage has no built-in Proxmox guest-volume replication. ZFS with scheduled replication and Ceph were discussed as alternatives rather than selected replacements for the SATA setup. Scheduled replication can lose changes since the last successful sync. See [replication storage support](https://github.com/proxmox/pve-docs/blob/master/pvesr.adoc) and [HA recovery/fencing](https://github.com/proxmox/pve-docs/blob/master/ha-manager.adoc). Proxmox HA recovers guest VMs; Kubernetes HA operates separately inside the guest environment.
 
 ## Temporary workstation provisioning: boostrap
 
