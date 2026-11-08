@@ -124,3 +124,9 @@
   ansible.builtin.template:
     src: templates/storage.cfg.j2
     dest: /etc/pve/storage.cfg
+
+- name: Deploy proxmox network configuration files
+  ansible.builtin.template:
+    src: templates/interfaces.cfg.j2
+    dest: /etc/network/interfaces
+  notify: Apply network configuration

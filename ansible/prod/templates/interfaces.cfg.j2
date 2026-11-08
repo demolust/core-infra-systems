@@ -1,0 +1,36 @@
+auto lo
+iface lo inet loopback
+
+# Use existing uplink bridge definition to get asigned interface name from the interfaces list
+iface {{ ansible_facts[prod_uplink_bridge]['interfaces'] | first }} inet manual
+
+# Use existing uplink bridge definition to get asigned IP address/mask & gateway
+auto {{ prod_uplink_bridge }}
+iface {{ prod_uplink_bridge }} inet static
+  address {{ ansible_facts['default_ipv4']['address'] }}
+  netmask {{ ansible_facts['default_ipv4']['netmask'] }}
+  gateway {{ ansible_facts['default_ipv4']['gateway'] }}
+  bridge-ports {{ ansible_facts[prod_uplink_bridge]['interfaces'] | first }}
+  bridge-stp off
+  bridge-fd 0
+  # Allow inter vm communacation between all guest vm's, with this nic attached, between all prod nodes
+  # The vm's must be defined as vlan tagged on inter_prod_vlan
+  bridge-vlan-aware yes
+  bridge-vids {{ inter_prod_vlan }}
+
+# Allow intra vm communacation between all guest vm's, with this nic attached, just in this prod node
+auto {{ prod_private_bridge }}
+iface {{ prod_private_bridge }} inet manual
+  bridge-ports none
+  bridge-stp off
+  bridge-fd 0
+
+# Allow NAT on all guest vm's, with this nic attached, just in this prod node
+auto {{ prod_nat_bridge }}
+iface {{ prod_nat_bridge }} inet static
+  address {{ prod_nat_gateway_cidr }}
+  bridge-ports none
+  bridge-stp off
+  bridge-fd 0
+
+source /etc/network/interfaces.d/*

@@ -8,3 +8,7 @@
   tasks:
     - name: Configure system
       ansible.builtin.import_tasks: tasks/system_setup.yml
+
+  handlers:
+    - name: Load prod node handlers
+      ansible.builtin.import_tasks: handlers/handlers.yml
