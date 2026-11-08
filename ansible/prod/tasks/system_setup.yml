@@ -166,3 +166,28 @@
     follow: true
     manage_dir: false
     exclusive: false
+
+- name: Install firewall dependencies (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name:
+      - proxmox-firewall
+    state: present
+    update_cache: true
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Ensure host firewall file exists
+  ansible.builtin.command:
+    cmd: touch /etc/pve/local/host.fw
+    creates: /etc/pve/local/host.fw
+
+- name: Deploy nftables firewall policy configuration files
+  ansible.builtin.template:
+    src: templates/host.fw.j2
+    dest: /etc/pve/local/host.fw
+    unsafe_writes: true
+
+- name: Ensure proxmox-firewall is enabled and running
+  ansible.builtin.systemd:
+    name: proxmox-firewall
+    state: started
+    enabled: true
