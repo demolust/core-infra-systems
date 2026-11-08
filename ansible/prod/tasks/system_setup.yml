@@ -52,9 +52,23 @@
       - parted
       - fwupd
       - udisks2
+      - lm-sensors
+      - lsof
+      - bind9-dnsutils
+      - tcpdump
+      - ethtool
+      - sysstat
+      - nvme-cli
+      - smartmontools
     state: present
     update_cache: true
   when: ansible_facts['os_family'] == "Debian"
+
+- name: Ensure smartmontools is enabled and running
+  ansible.builtin.systemd:
+    name: smartmontools
+    state: started
+    enabled: true
 
 - name: Check if {{ data_path }} is already mounted as a separate partition
   ansible.builtin.set_fact:
@@ -130,3 +144,25 @@
     src: templates/interfaces.cfg.j2
     dest: /etc/network/interfaces
   notify: Apply network configuration
+
+- name: Create systemd journald extra conf directory
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Deploy log retention policy configuration files
+  ansible.builtin.template:
+    src: templates/journal_log_retention.conf.j2
+    dest: /etc/systemd/journald.conf.d/retention.conf
+
+- name: Deploy SSH public key
+  ansible.posix.authorized_key:
+    user: root
+    state: present
+    key: "{{ admin_ssh_pub_key }}"
+    follow: true
+    manage_dir: false
+    exclusive: false

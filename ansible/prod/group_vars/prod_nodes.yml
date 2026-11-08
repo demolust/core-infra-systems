@@ -1,8 +1,11 @@
 ---
+# Config settings
+# Storage configs
 data_path: "/data"
 data_fs_type: "ext4"
 disk_pattern: "pci-*-ata-1"
 pe_storage_name: "sata-local"
+# Network configs
 inter_prod_vlan: "110"
 prod_uplink_bridge: vmbr0
 prod_private_bridge: vmbr1
@@ -11,3 +14,6 @@ prod_nat_bridge: vmbr2
 # Using `192.168.x.x` to distinguishes it from the VLANs network definitions `172.16.x.x`
 prod_nat_gateway_cidr: 192.168.130.1/24
 prod_nat_subnet: 192.168.130.0/24
+
+# General configs
+admin_ssh_pub_key: "{{ lookup('env', 'TARGET_ADMIN_SSH_PUB_KEY') | default('', true) }}"
