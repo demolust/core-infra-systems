@@ -244,9 +244,9 @@ For guest usage, select a template and a network profile rather than repeat an i
 
 ### API access for guest provisioning
 
-Terraform will use dedicated Proxmox API credentials to create and manage guests. A separate automation identity/token and appropriate permissions are planned; no role definition, exact privileges, provider, token name, or secret-delivery workflow has been chosen. Intended usage is guest provisioning through the API rather than interactive host SSH for every VM operation. Keep credentials out of this guide and committed VM definitions.
+Terraform will use a Proxmox Terraform provider and dedicated API credentials to create and manage guests. API permissions: Still undecided. The specific provider package, automation identity/token, and secret-delivery workflow have not been selected. Intended usage is guest provisioning through the API rather than interactive host SSH for every VM operation. Keep credentials out of this guide and committed VM definitions.
 
-API permissions define which operations the automation identity may perform. The Terraform provider is the plugin that lets Terraform manage Proxmox resources. Their selection and configuration, API execution design, and dependency layout are deferred; only the general API-access plan is recorded here. Future platform implementation belongs in [CONFIGURATION.md](CONFIGURATION.md#planned-proxmox-platform-work).
+API permissions define which operations the automation identity may perform. The Terraform provider is the plugin that lets Terraform manage Proxmox resources. Detailed permissions, provider configuration, and dependency layout are deferred. The [general cluster workflow](CONFIGURATION.md#general-cluster-workflow) records the deployment order and why Ansible cluster API calls execute on the controller; platform implementation remains in [CONFIGURATION.md](CONFIGURATION.md#planned-proxmox-platform-work).
 
 ### Monitoring plan
 

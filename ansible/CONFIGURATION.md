@@ -511,13 +511,13 @@ The following items were discussed but are not implemented by the current produc
 
 | Area | Plan and remaining decision |
 | --- | --- |
-| Cluster membership | Plan a three-node Proxmox cluster, with possible HA later. Cluster deployment flow is deferred; joining nodes must not already hold guests. |
+| Cluster membership | Plan a three-node Proxmox cluster, with possible HA later. Follow the [general cluster workflow](#general-cluster-workflow); joining nodes must not already hold guests. |
 | Shared storage | Optional NFS or SMB/CIFS backend. The control node is the candidate server, but whether to add shared storage is still undecided. Protocol, export/share, capacity, and storage ID remain open; the existing control-node Samba service is not automatically Proxmox storage. |
 | HA | Enable recovery for selected guests after disk access/replication, network compatibility, capacity, and fencing behavior are established. Ordinary clustering does not replicate guest disks. |
-| API access | Plan dedicated automation credentials for Terraform guest provisioning. Permissions, Terraform provider selection, API execution design, and dependency layout will be addressed later. |
+| API access | Plan dedicated automation credentials for Terraform guest provisioning through a Proxmox Terraform provider. API permissions: Still undecided. The specific provider package, module parameters, credentials, and dependency layout remain undecided. Ansible cluster API calls run from the controller as described in the [general cluster workflow](#general-cluster-workflow). |
 | NAT addressing | The node-local subnet/gateway are selected: `192.168.130.0/24` and `192.168.130.1`. DHCP versus cloud-init/static guest addressing and DNS service remain undecided; see [addressing and DHCP scope](#addressing-and-dhcp-scope). |
 | Templates | Establish one reproducible cloud-image template and validate cloning/cloud-init before adding more operating systems. OS/version, template identifiers, and build tooling are undecided. Record the exact image build, checksum, and preparation inputs; see [template reproducibility](PE_CONFIGURATION.md#vm-templates-and-initial-guest-configuration). |
-| Backups and notifications | Backup destination is undecided. Later choose schedules, retention, restore validation, and notification delivery for backup, storage, and HA events. |
+| Backups and notifications | Backup destination: Still undecided. Later choose schedules, retention, restore validation, and notification delivery for backup, storage, and HA events. |
 | Monitoring | Local disk-health service and diagnostic packages are configured. A future dedicated host on switch port 8 is planned for central monitoring. Stack, agents/exporters, log collection, dashboards, alert delivery, and central retention are undecided; no monitoring stack is selected by installing the current host tools. |
 | Maintenance | Keep the working default chrony setup. Local journal-retention configuration is deployed; central logging and alerting remain separate work. Extend the shared update workflow with cluster/guest checks and controlled maintenance before HA use. |
 
@@ -526,6 +526,23 @@ A three-node Proxmox cluster has distributed management and replicated `/etc/pve
 Shared storage can let another node restart a failed node's guest, but all required guest disks and network attachments must be available there. Proxmox mounts [NFS](https://github.com/proxmox/pve-docs/blob/master/pve-storage-nfs.adoc) and [SMB/CIFS](https://github.com/proxmox/pve-docs/blob/master/pve-storage-cifs.adoc) through their native backends; adding a share does not move existing guest disks. One share server remains a common failure point, and a live share is not a backup.
 
 Local ext4 Directory storage has no built-in Proxmox guest-volume replication. ZFS with scheduled replication and Ceph were discussed as alternatives rather than selected replacements for the SATA setup. Scheduled replication can lose changes since the last successful sync. See [replication storage support](https://github.com/proxmox/pve-docs/blob/master/pvesr.adoc) and [HA recovery/fencing](https://github.com/proxmox/pve-docs/blob/master/ha-manager.adoc). Proxmox HA recovers guest VMs; Kubernetes HA operates separately inside the guest environment.
+
+#### General cluster workflow
+
+Cluster deployment remains in the final platform phase, after the per-node baseline is ready.
+
+1. Finish and verify DNS, time synchronization, storage mounts, and networking on each node.
+2. Select an initial node from configuration/inventory and create the cluster there. It does not become a permanent master.
+3. Join the remaining inventory nodes sequentially, before creating guests on those joining nodes.
+4. Verify cluster membership, quorum, and connectivity between nodes.
+5. Reconcile shared configuration once per cluster, including storage definitions and the final firewall policy. Each node still needs its local mounts and node-specific settings.
+6. Prepare templates and provision guests. Add HA later if selected, after its storage, networking, spare-capacity, and fencing requirements are satisfied.
+
+The Ansible flow should check existing membership, preserve an existing cluster on reruns, and join only new nodes. An unexpected cluster membership should stop the workflow for review. Derive members from configuration/inventory rather than duplicating per-node tasks.
+
+For Ansible tasks that call the Proxmox API, use `delegate_to: localhost` so the API request originates from the Ansible controller; Proxmox performs the requested operation on the nodes. In the GitOps setup, `localhost` is the runner's execution environment. Ordinary SSH-based host setup still targets the managed nodes. Delegation selects where a task executes; it does not itself make cluster creation run once or joins run sequentially, so the workflow must enforce that ordering.
+
+Exact API module parameters, credentials, and controller/runner dependency layout remain deferred.
 
 ## Temporary workstation provisioning: boostrap
 
