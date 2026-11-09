@@ -334,7 +334,7 @@ At PXE boot, the control node's generic script chains the matching MAC script au
 | Configuration | Current behavior |
 | --- | --- |
 | APT sources | Enables `pve-no-subscription` for the installed Debian release and disables PVE Enterprise and Ceph Squid Enterprise. Debian sources remain separate. Disabling the Ceph repository does not create or remove a Ceph cluster. |
-| Host packages | Installs `vim`, `parted`, `fwupd`, and `udisks2`, refreshing the APT cache. The `deb822_repository` tasks also require the target Python Debian library. |
+| Host packages | Installs `vim`, `parted`, `fwupd`, `udisks2`, `lm-sensors`, `lsof`, `bind9-dnsutils`, `tcpdump`, `ethtool`, `sysstat`, `nvme-cli`, and `smartmontools`, refreshing the APT cache. Also enables/starts `smartmontools`. The `deb822_repository` tasks require the target Python Debian library. |
 | SATA selection | When `/data` is not mounted, discovers the disk using `/dev/disk/by-path/{{ disk_pattern }}`; the current pattern is `pci-*-ata-1`. Checks the selected device's reported mountpoints before partitioning. |
 | Filesystem and mount | Ensures partition 1 and ext4, reads its UUID from the `-part1` by-path link, and maintains the `/data` mount in `/etc/fstab`. Mounting follows filesystem setup even if formatting reports no change. Current options are `defaults,_netdev,nofail`; `_netdev` is unnecessary for local SATA storage. |
 | Storage registration | Renders [storage.cfg.j2](prod/templates/storage.cfg.j2) to `/etc/pve/storage.cfg` on every run, including when `/data` is already mounted. The template preserves the expected `local` and `local-lvm` definitions and adds the configured SATA storage ID. |
@@ -349,6 +349,8 @@ ansible-playbook -i inventories/prod_nodes.yml setup.yml
 
 The SATA disk has one data partition, mounted by filesystem UUID at `data_path` (currently `/data`). NVMe holds Proxmox and its original storage; NVMe capacity/brand differences do not require identical SATA layouts. The operator reported the data mount surviving reboot and `pvesm status` showing `sata-local` active on prod01. Apply the same validation to each host.
 
+**Storage choice rationale.** One ext4 partition uses the SATA disk as a single capacity pool for the learning workloads. This keeps mounting and Directory storage simple without reserving fixed partitions or logical volumes for Kubernetes, HPC, or LocalStack before their needs are known. Separate partitions, multiple host filesystems, Btrfs, and an additional LVM layer were not selected. Preserve the installer-created NVMe storage rather than recreating it. Guest filesystems are independent of the host ext4 choice, and Proxmox manages its content directories under `/data`. This is local storage on each node, not a replicated or HA storage solution.
+
 | Storage definition | Backing storage and purpose |
 | --- | --- |
 | `local` | NVMe-backed `/var/lib/vz`; permits ISO images, container templates, backups, and imports. |
@@ -359,52 +361,149 @@ Proxmox creates its content layout under the registered path, including `images/
 
 `/etc/pve` is managed by Proxmox's cluster filesystem, so the template omits Unix owner/group/mode changes. This template owns the entire storage file: add any later NFS/SMB or other definitions to the managed configuration rather than expecting manual additions to survive a rerun. Once clustered, manage cluster-wide definitions once per cluster; each node still needs its own local mount.
 
-### Planned Proxmox guest-network integration
+### Proxmox guest-network integration
 
-[PE_CONFIGURATION.md](PE_CONFIGURATION.md#guest-network-profiles) defines how guests will use the four profiles, their combinations, and bastion access. Host-side networking automation is still to be added. The following examples describe the intended configuration rather than changes applied by `prod/setup.yml`.
+[interfaces.cfg.j2](prod/templates/interfaces.cfg.j2) now owns the full `/etc/network/interfaces` file, including the uplink, node-local private bridge, node-local NAT bridge, and `source /etc/network/interfaces.d/*`. Do not also define these bridges in included files. [system_setup.yml](prod/tasks/system_setup.yml) deploys it and notifies the `Apply network configuration` handler in [handlers.yml](prod/handlers/handlers.yml), which runs `ifreload -a` when the template changes. Restarting `networking.service` is not the chosen apply method.
 
-The installed host uses `enp1s0` as a manual bridge port and puts its management address on `vmbr0`. For prod01, the intended VLAN-aware extension is:
+The template gets the existing uplink port from `ansible_facts[prod_uplink_bridge]['interfaces'] | first`. It preserves the running default IPv4 address, dotted netmask, and gateway through `ansible_facts['default_ipv4']`. This assumes the named bridge already exists, owns the default route, and has one intended member; the installed nodes reported `enp1s0` as that member. It does not discover an arbitrary spare NIC or rename an existing bridge.
 
-```text
-iface enp1s0 inet manual
-
-auto vmbr0
-iface vmbr0 inet static
-    address 172.16.20.21/24
-    gateway 172.16.20.1
-    bridge-ports enp1s0
-    bridge-stp off
-    bridge-fd 0
-    bridge-vlan-aware yes
-    bridge-vids 110
-```
-
-Use each host's actual physical NIC and management address; prod02/prod03 use `172.16.20.22`/`172.16.20.23` in the current inventory. The bridge continues carrying untagged management traffic, mapped to native VLAN 20 by the switch. VLAN awareness additionally separates tagged VLAN 110 traffic; it does not assign the whole bridge to VLAN 110.
-
-| Integration point | Intended behavior |
+| Variable | Current value and role |
 | --- | --- |
-| UniFi VLAN definition | Declare VLAN 110 as a switch network. Its VM subnet is `172.16.110.0/24`; a VLAN ID and an IP subnet are distinct settings. |
-| Physical switch ports 4, 5, 6 | Keep `native_vlan: "20"`, set `tagged: "custom"`, and allow `tagged_vlans: ["110"]`. Preserve each port's name and PoE choice. Allowing every VLAN is unnecessary. |
-| Proxmox `vmbr0` | Enable VLAN awareness and allow tagged VLAN 110 on each node. |
-| Guest virtual NIC | Terraform selects `vmbr0` and tag `110` for the cross-node private profile; ordinary VLAN 20 guest NICs remain untagged in this native-VLAN design. |
-| Proxmox host IPs | Keep management on VLAN 20. No `vmbr0.110` address is planned because a guest bastion supplies private SSH access. |
-| Netnode | Keep VLAN 110 out of `router_vlans` for the isolated profile. No router interface, DHCP scope, or gateway is needed for same-subnet private peer traffic. |
+| `prod_uplink_bridge` | `vmbr0`: physical uplink and management/native VLAN 20; VLAN-aware for guest VLANs. |
+| `inter_prod_vlan` | `110`: tagged cross-node private guest network, with subnet `172.16.110.0/24`. |
+| `prod_private_bridge` | `vmbr1`: portless bridge for guests on one node, with no host address. |
+| `prod_nat_bridge` | `vmbr2`: portless bridge for host-provided NAT guests on one node. |
+| `prod_nat_gateway_cidr` | `192.168.130.1/24`: the host's address on its own NAT bridge and the guests' intended gateway. |
+| `prod_nat_subnet` | `192.168.130.0/24`: intended NAT source subnet. Declared for later NAT/DHCP/firewall work; the current interface template does not consume it. |
 
-The current local UniFi input already lists VLAN 110 and the custom tagged settings on ports 4–6; this records desired configuration, not proof of an applied switch state. See [port mapping](../unifi/terraform/switch_core_ports.tf) and [input schema](../unifi/terraform/variables.tf). A Terraform apply and host-network deployment/validation remain separate operations.
+The installed host keeps its address on `vmbr0`, for example `172.16.20.21` on prod01. The template renders `address` and `netmask` separately and enables `bridge-vlan-aware yes` with `bridge-vids {{ inter_prod_vlan }}`. The physical port remains `inet manual`; ordinary untagged traffic follows the switch's native VLAN 20. Tagged guest traffic is separated by the bridge rather than assigning all of `vmbr0` to VLAN 110.
 
-A node-local private profile uses a portless bridge, with a provisional name such as `vmbr1`:
+| Integration point | Configuration and usage |
+| --- | --- |
+| UniFi VLAN definition | VLAN 110 is a switch network; its VM subnet is `172.16.110.0/24`. VLAN IDs and IP subnets are distinct settings. |
+| Physical switch ports 4, 5, 6 | Keep `native_vlan: "20"`, use `tagged: "custom"`, and allow `tagged_vlans: ["110"]`. Preserve each port's name and PoE setting. |
+| Guest virtual NIC | Terraform selects `vmbr0` with tag `110` for inter-node private traffic; VLAN 20 NICs remain untagged in this native-VLAN design. |
+| Proxmox host IPs | Keep management on VLAN 20. No `vmbr0.110` host address is needed for the selected guest-bastion access method. |
+| Netnode | VLAN 110 stays outside `router_vlans` for the isolated inter-node profile. Same-subnet private guests need no router or DHCP scope there. |
 
-```text
-auto vmbr1
-iface vmbr1 inet manual
-    bridge-ports none
-    bridge-stp off
-    bridge-fd 0
+The local UniFi input lists VLAN 110 and the custom tagged settings on ports 4–6. Desired switch input is distinct from verification of an applied state. See [port mapping](../unifi/terraform/switch_core_ports.tf) and [input schema](../unifi/terraform/variables.tf).
+
+`vmbr1` is rendered with `inet manual`, `bridge-ports none`, STP off, and forwarding delay zero. `vmbr2` uses the same portless bridge settings but `inet static` with `prod_nat_gateway_cidr`. It needs that address because the Proxmox host will be its gateway. Neither bridge has a physical port, VLAN tag, or another host default-gateway directive.
+
+`192.168.130.0/24` distinguishes node-local NAT from the lab's `172.16.<VLAN>.0/24` convention. It does not create VLAN 130 and needs no switch/netnode VLAN configuration. The same subnet and gateway are reused independently on every node; guests must have unique addresses within each local bridge. Do not reuse this subnet for another interface of the same guest or a network it must route to.
+
+**Current boundary:** deploying `vmbr2` creates a local network and host gateway address only. The committed tasks do not enable forwarding, install masquerading, start DHCP/DNS for this bridge, or isolate guest ports. Without additional filtering, attached guests on one node can communicate. The intended NAT/isolation behavior is described in [PE_CONFIGURATION.md](PE_CONFIGURATION.md#nat-only-guests-and-the-router-boundary).
+
+Validation after applying the template can use `ip -br addr`, `ip route`, and `bridge vlan show`. Confirm the management route remains on `vmbr0`, the private bridge has no host IP, and the NAT bridge has `192.168.130.1/24`. See [Proxmox bridge/VLAN configuration](https://github.com/proxmox/pve-docs/blob/master/pve-network.adoc).
+
+### Host access, local diagnostics, and log retention
+
+The host baseline added in commit `a5bdaf3` keeps troubleshooting tools on the Proxmox nodes while deferring central monitoring to a future dedicated host on switch port 8.
+
+| Configuration | Implemented behavior and limits |
+| --- | --- |
+| SSH administrator access | `TARGET_ADMIN_SSH_PUB_KEY` supplies `admin_ssh_pub_key`. `ansible.posix.authorized_key` adds it for root with `follow: true`, `manage_dir: false`, and `exclusive: false`. |
+| Proxmox SSH identity | Preserve `/root/.ssh/authorized_keys -> /etc/pve/priv/authorized_keys`, other authorized keys, and Proxmox-generated private/public keys. Once clustered, the authorized-key target is shared; reconcile identical administrator additions once rather than concurrently rewriting the shared file. |
+| Local disk health | Ensures `smartmontools` is enabled/running; `smartctl` and `nvme-cli` support SATA/NVMe investigation. |
+| Troubleshooting | Installs `lm-sensors`, `lsof`, `bind9-dnsutils`, `tcpdump`, `ethtool`, and `sysstat` alongside the existing host tools. Installing them does not configure central collection or alert delivery. |
+| Local journal retention | [journal_log_retention.conf.j2](prod/templates/journal_log_retention.conf.j2) writes `/etc/systemd/journald.conf.d/retention.conf` with `SystemMaxUse=500M` and `MaxRetentionSec=14day`. Busy journals can retain less than 14 days because of the size limit. |
+| Time synchronization | Keep the working default chrony configuration. No custom chrony template is currently required. |
+
+Local journald retention is separate from central log ingestion and application-specific log files. The current task deploys the drop-in without a journald restart handler; activate changed settings with an appropriate service restart or reboot. Central metrics/log storage, dashboards, alerts, and any required collectors remain to be selected with the monitoring stack.
+
+### nftables backend preparation and final firewall work
+
+Commit `7eff557` prepares the nftables backend on each Proxmox host. It installs `proxmox-firewall`, ensures `/etc/pve/local/host.fw` exists, deploys [host.fw.j2](prod/templates/host.fw.j2), and enables/starts `proxmox-firewall.service`. The current template contains only:
+
+```ini
+[OPTIONS]
+nftables: 1
 ```
 
-No host IP is needed on this bridge when SSH goes through a bastion VM. Bridges with the same name on different nodes remain isolated. A guest attached to VLAN 110 instead sends tagged traffic through the physical switch, allowing private peers on different nodes to communicate.
+`/etc/pve/local` is the current node's symlink under `/etc/pve/nodes/`, so no hostname interpolation is needed. This selects the backend; it does not create a general filtering policy or NAT rules. Verify the new backend with `systemctl status proxmox-firewall` and `nft list ruleset`; `pve-firewall status` refers to the older backend.
 
-Apply future host networking with the installed ifupdown2 workflow (`ifreload -a` for direct configuration changes), preserving management connectivity during deployment. See [Proxmox bridge/VLAN configuration](https://github.com/proxmox/pve-docs/blob/master/pve-network.adoc). NAT configuration is still undecided; implementing it will require a specific router location, subnet, forwarding/firewall policy, and DNS arrangement. SSH ProxyJump alone does not require NAT.
+The filesystem fixes are deliberate: the task pre-creates the file with `touch` guarded by `creates`, then templates it with `unsafe_writes: true`, omitting owner/group/mode. On first creation, Ansible wrote the intended content but failed during metadata handling on pmxcfs; pre-creation avoids that path, while unsafe writes permit fallback when atomic replacement fails. The template owns the complete host file, so later host options/rules must be included rather than maintained separately in that same file.
+
+| Scope | Configuration ownership |
+| --- | --- |
+| Shared Proxmox policy | `/etc/pve/firewall/cluster.fw`: shared rules, IP sets, security groups, and the global enable flag. Once clustered, deploy once and let Proxmox replicate it. |
+| Current host | `/etc/pve/local/host.fw`: backend choice and node-specific overrides; managed by the current setup. |
+| Guest | `/etc/pve/firewall/<VMID>.fw` and relevant VM/NIC firewall flags: guest rules and group associations. |
+| Custom nftables behavior | Host-loaded, separately owned tables for masquerading or bridge-level filtering not represented by the selected Proxmox configuration. `cluster.fw` is not raw nftables syntax. |
+
+The chosen order is baseline host preparation first, with cluster creation and final shared firewall/NAT enforcement deferred to the final phase. No cluster or filtering activation should be inferred from the backend service running. When implementing the policy, retain administration/controller access, peer cluster/migration traffic, required DNS/time/update access, and future monitoring access.
+
+For `vmbr2`, the selected design is host-provided NAT with **guest isolation by default and explicit peer-communication opt-in**. The inverse shared-NAT design was discussed as an alternative. Remaining host work is IPv4 forwarding, source masquerading through `vmbr0`, forwarding/return rules, guest-to-guest bridge filtering, host/lab access restrictions, and DHCP/DNS if automatic address configuration is desired. NAT alone supplies none of the isolation guarantees. Keep `vmbr1` and VLAN 110 private behavior separate.
+
+Proxmox's nftables backend manages its own generated tables and permits separately managed custom tables. Prepare policy before enabling filtering; switching firewall backends also requires restarting existing guests. The referenced documentation currently marks this backend as tech preview. See [Proxmox firewall and nftables behavior](https://github.com/proxmox/pve-docs/blob/master/pve-firewall.adoc#nftables).
+
+#### Planned host-access policy
+
+The following is the full baseline policy specification for the final firewall phase, not an already deployed ruleset. Resolve administration sources, controller endpoints, node membership, and optional service endpoints from the same inventory/configuration model: environment variables now, NetBox and OpenBao later. Do not duplicate literal node addresses in task definitions. Never include API tokens, passwords, private SSH keys, or OpenBao credentials in these documents.
+
+| Traffic to/from a Proxmox host | Intended policy and scope |
+| --- | --- |
+| Administration SSH, TCP 22 | Allow incoming connections from approved workstation/administration sources and the Ansible controller. Include the actual management/VPN paths in use rather than assuming the administrator is on VLAN 20. |
+| API/UI, TCP 8006 | Allow approved administration sources and the controller/Terraform execution environment. The port remains relevant even when management normally uses CLI/IaC. |
+| Peer SSH/API | Permit the node-to-node SSH/API operations required for cluster management and joining. Keep peer membership distinct from general VLAN 20 guest access. |
+| Corosync, UDP 5405–5412 | Permit between inventory-defined Proxmox peers on the selected cluster addresses. Guest VLAN 110 is not the host cluster communication network. |
+| Migration, TCP 60000–60050 | Permit between Proxmox peers when migration is enabled. Preserve associated SSH/API access. |
+| ICMP | Permit intended troubleshooting and required network error/path-MTU messages; rate limiting may be applied without breaking essential error handling. |
+| Established replies and loopback | Preserve legitimate return traffic and local service communication. Inspect Proxmox's generated baseline before adding redundant or conflicting state rules. |
+| Monitoring | Permit only the future monitoring host to reach the collectors actually deployed. No exporter ports are selected yet. |
+| Optional consoles | TCP 5900–5999 for VNC console and TCP 3128 for SPICE only when those access paths are used, restricted to the relevant management/proxy sources. |
+| Shared storage/backups | Permit the chosen storage/backup protocols to the selected servers once NFS, SMB, or another backend is selected; account for any required callbacks. Do not open every possible storage service in advance. |
+| Other host input | Drop unsolicited traffic not covered by required services or explicit exceptions. |
+| Host output | Initially allow host-originated traffic, including DNS, chrony/NTP, updates, storage, backups, and notifications. This does not authorize guest forwarding through the host. |
+
+Ports are based on the [Proxmox firewall service-port reference](https://github.com/proxmox/pve-docs/blob/master/pve-firewall.adoc#ports-used-by-pve). Exact permitted source sets, optional service ports, and the final rule syntax remain implementation inputs. This policy describes the effective result: account for Proxmox's generated management/local-network allowances so that a guest sharing VLAN 20 does not gain unintended host-management access.
+
+#### Planned guest-network and NAT enforcement
+
+Host input, direct Ethernet forwarding, routed forwarding, and source NAT are different packet paths. A host input allowlist does not preserve all guest bridge traffic, and source masquerading does not block peers.
+
+| Network/path | Intended policy |
+| --- | --- |
+| `vmbr0`, native VLAN 20 guest attachment | Preserve the intended lab connectivity and upstream path, subject to guest/application policy. Apply the host-access allowlist separately to traffic addressed to Proxmox itself. |
+| `vmbr0`, VLAN 110 guest attachment | Preserve same-VLAN private peer traffic across the physical switch and approved bastion SSH. VLAN allowance/tagging belongs to the bridge, guest NIC, and switch configuration, not to an invented IP gateway. |
+| `vmbr1` local bridge | Preserve communication among attached same-node guests, including ARP and selected IP protocols. No host routing, NAT, or external default gateway is added to this profile. |
+| `vmbr2` direct peer traffic | Deny guest-to-guest Ethernet traffic by default, including paths that bypass IP routing. Implement intentional peer exceptions without exposing guests that remain isolated. |
+| `vmbr2` routed egress | Enable IPv4 forwarding for the intended NAT path, allow approved outbound destinations and their replies, and masquerade the NAT subnet through `vmbr0`. Deny unintended forwarding between other guest networks. |
+| `vmbr2` host/lab destinations | Block host services and lab/private destinations unless explicitly required. Source NAT alone does not enforce an internet-only boundary. Any permitted DNS/DHCP destination must precede broader restrictions. |
+| Required gateway services | Permit ARP to the gateway and replies. If DHCP is selected, permit its discovery/request/reply exchanges only on the relevant bridge and constrain server replies to the intended server. Permit the selected DNS resolver over UDP/TCP 53. |
+| Bastion access | Permit TCP 22 from the approved bastion to selected private guests and its return traffic. A NAT guest requires an explicit SSH exception; attaching the bastion does not waive default isolation. No kernel forwarding or agent forwarding is needed merely for ProxyJump. |
+| Peer-access opt-in | Require policy approval for both endpoints or an explicitly approved peer group; one guest opting in must not expose an isolated guest. The proposed boolean is illustrative, not an implemented rule generator. |
+| Guest source identity | Bind guest MAC/IP allowances to the appropriate attachment or equivalent enforcement so impersonating an approved source does not bypass isolation. Initial DHCP exceptions and later address changes must be handled deliberately. |
+| IPv6 | Decide whether each profile supports it. If supported, apply equivalent peer/host/private restrictions while preserving necessary ICMPv6/NDP. Otherwise explicitly prevent unintended IPv6 connectivity for that profile; IPv4-only filtering is not complete isolation. |
+| Invalid traffic and logging | Handle invalid traffic and legitimate related/established replies in the appropriate hooks. Rate-limit diagnostic deny logs and retain them under the local journal policy; central collection follows the monitoring plan. |
+
+Use Proxmox shared security groups/IP sets and per-guest associations where they express the required policy. Custom nftables tables may be needed for NAT and direct bridge filtering on the selected plain Linux bridges. Do not paste raw nftables chains into `cluster.fw`, overwrite Proxmox-generated tables, or flush unrelated tables. The exact split and rule ordering are still to be implemented and tested with the selected backend.
+
+#### Addressing and DHCP scope
+
+| Attachment | Initial address plan | DHCP growth option |
+| --- | --- | --- |
+| VLAN 20 on `vmbr0` | Existing netnode DHCP/reservations remain available; a guest can use cloud-init DHCP settings with its reserved MAC or a deliberately managed static address. | Reuse the existing VLAN 20 service rather than adding competing host DHCP servers. |
+| VLAN 110 on `vmbr0` | Static guest addresses supplied through cloud-init, no default gateway on the private NIC. | One coordinated service reachable on VLAN 110 can serve all nodes. Per-host servers must not independently offer conflicting leases on the same VLAN. |
+| `vmbr1` | Static addresses supplied through cloud-init in the experiment's selected subnet; no default gateway. | A DHCP service must be reachable within each node-local bridge, for example a local service or service VM. One central service requires a deliberately configured relay/path; cluster configuration replication does not carry DHCP broadcasts. |
+| `vmbr2` | DHCP versus cloud-init/static assignment remains open. Either choice must provide the NAT gateway, unique local addresses, and a reachable DNS resolver. | With the same subnet reused on disconnected nodes, use a separate local service/scope per bridge if DHCP is selected. Do not bridge those networks together to share one broadcast domain. |
+
+Starting DHCP is a separate service/configuration task, not an effect of NAT or firewall enablement. Private-profile DHCP must not advertise an external default gateway when the intended profile has no external route. The `vmbr1` host bridge can remain without an IP if the future service is supplied by a guest on that bridge; host-provided services may require additional local addressing.
+
+#### Activation and validation plan
+
+Keep the selected order: finish the host baseline, create/join the cluster in the final phase, then deploy and enable the shared firewall/NAT policy. Validate cluster membership before enabling rules that depend on it. Manage replicated shared files once, and apply node-local bridge/NAT configuration on each host.
+
+1. Resolve and review permitted source sets, guest identities, DNS destinations, and optional services; verify that current SSH/controller access is included.
+2. Deploy policy and the selected DHCP/DNS services without claiming filtering is active merely because the backend service runs.
+3. Enable and verify one node first, preserving a console recovery path; then continue to the remaining nodes.
+4. Test SSH/API administration, peer cluster traffic, migration when selected, DNS, chrony, updates, and configured storage/monitoring paths.
+5. Test `vmbr1` peers on one node and VLAN 110 peers across nodes, confirming that neither private profile obtains unintended internet routing.
+6. Test a NAT-only guest's gateway, DNS, and outbound connectivity; confirm unsolicited inbound access, host services, private destinations, and NAT peers are denied.
+7. Test peer opt-in in both directions and confirm a third guest that remains isolated is still protected. Include broadcast/ARP behavior and IPv6, not just IPv4 ping tests.
+8. Verify bastion SSH exceptions, persistence after service reload/reboot, and rule reconciliation after guest creation/removal or migration.
+
+Rollback should restore the previous owned policy/configuration or disable the affected enforcement scope, without flushing unrelated firewall tables. No such rollout or firewall rules are implemented by this documentation update.
 
 ### Planned Proxmox platform work
 
@@ -412,14 +511,15 @@ The following items were discussed but are not implemented by the current produc
 
 | Area | Plan and remaining decision |
 | --- | --- |
-| Cluster membership | Create the cluster on one node and join the others before provisioning guests on the joining nodes. Manage membership idempotently; choose a cluster name and communication addresses. |
-| Shared storage | Add an NFS or SMB/CIFS backend with selected content types and access from all relevant nodes. Server/export/share, storage ID, and placement remain undecided; existing control-node Samba service is not automatically Proxmox storage. |
+| Cluster membership | Plan a three-node Proxmox cluster, with possible HA later. Cluster deployment flow is deferred; joining nodes must not already hold guests. |
+| Shared storage | Optional NFS or SMB/CIFS backend. The control node is the candidate server, but whether to add shared storage is still undecided. Protocol, export/share, capacity, and storage ID remain open; the existing control-node Samba service is not automatically Proxmox storage. |
 | HA | Enable recovery for selected guests after disk access/replication, network compatibility, capacity, and fencing behavior are established. Ordinary clustering does not replicate guest disks. |
-| API access | Create dedicated automation credentials and permissions for Terraform. Provider, exact role/privileges, and secret-delivery details remain to be selected. |
-| Templates | Establish one cloud-image template and validate cloning/cloud-init before adding more operating systems. Template identifiers and build details remain undecided. |
-| Backups and notifications | Choose an external destination, schedules, retention, restore validation, and notification delivery for backup, storage, and HA events. |
-| Monitoring | Add disk-health, capacity, temperature, and failed-service visibility according to the available hardware. |
-| Maintenance | Extend the shared update workflow with explicit cluster/guest checks and controlled node maintenance before HA use. |
+| API access | Plan dedicated automation credentials for Terraform guest provisioning. Permissions, Terraform provider selection, API execution design, and dependency layout will be addressed later. |
+| NAT addressing | The node-local subnet/gateway are selected: `192.168.130.0/24` and `192.168.130.1`. DHCP versus cloud-init/static guest addressing and DNS service remain undecided; see [addressing and DHCP scope](#addressing-and-dhcp-scope). |
+| Templates | Establish one reproducible cloud-image template and validate cloning/cloud-init before adding more operating systems. OS/version, template identifiers, and build tooling are undecided. Record the exact image build, checksum, and preparation inputs; see [template reproducibility](PE_CONFIGURATION.md#vm-templates-and-initial-guest-configuration). |
+| Backups and notifications | Backup destination is undecided. Later choose schedules, retention, restore validation, and notification delivery for backup, storage, and HA events. |
+| Monitoring | Local disk-health service and diagnostic packages are configured. A future dedicated host on switch port 8 is planned for central monitoring. Stack, agents/exporters, log collection, dashboards, alert delivery, and central retention are undecided; no monitoring stack is selected by installing the current host tools. |
+| Maintenance | Keep the working default chrony setup. Local journal-retention configuration is deployed; central logging and alerting remain separate work. Extend the shared update workflow with cluster/guest checks and controlled maintenance before HA use. |
 
 A three-node Proxmox cluster has distributed management and replicated `/etc/pve` configuration. Creating it on prod01 does not make that node a permanent primary. With equal votes, two connected nodes provide quorum. DNS and time synchronization support cluster operation; Corosync needs a reliable, low-latency network. See [Cluster Manager](https://github.com/proxmox/pve-docs/blob/master/pvecm.adoc).
 
