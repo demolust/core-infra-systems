@@ -1,3 +1,4 @@
 ---
-- name: Apply network configuration
+# Avoid reloading with systemctl networking.service, as it hangs machine due to all networks are restared
+- name: Apply network configuration (hot reload)
   ansible.builtin.command: ifreload -a

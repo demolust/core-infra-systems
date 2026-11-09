@@ -1,5 +1,4 @@
 ---
-# Config settings
 # Storage configs
 data_path: "/data"
 data_fs_type: "ext4"
@@ -11,7 +10,7 @@ prod_uplink_bridge: vmbr0
 prod_private_bridge: vmbr1
 prod_nat_bridge: vmbr2
 # Node local NAT network definition
-# Using `192.168.x.x` to distinguishes it from the VLANs network definitions `172.16.x.x`
+# Using the range: `192.168.x.x` to distinguish it from the VLANs network definitions: `172.16.x.x`
 prod_nat_gateway_cidr: 192.168.130.1/24
 prod_nat_subnet: 192.168.130.0/24
 

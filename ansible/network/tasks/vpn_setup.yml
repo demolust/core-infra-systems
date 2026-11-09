@@ -14,6 +14,7 @@
     sysctl_set: true
     state: present
     reload: true
+    sysctl_file: /etc/sysctl.d/99-ip-fwd.conf
 
 - name: Ensure dedicated WireGuard zone exists
   ansible.posix.firewalld:

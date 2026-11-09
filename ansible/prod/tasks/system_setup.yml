@@ -1,17 +1,4 @@
 ---
-- name: Gather user information for systemd UIDs
-  ansible.builtin.getent:
-    database: passwd
-
-- name: Gather current architecture
-  ansible.builtin.shell: "uname -m"
-  register: arch
-  changed_when: false
-
-- name: Set architecture fact
-  ansible.builtin.set_fact:
-    current_arch: "{{ arch.stdout }}"
-
 - name: Configure Proxmox VE repository
   ansible.builtin.deb822_repository:
     name: pve-no-subscription
@@ -60,6 +47,7 @@
       - sysstat
       - nvme-cli
       - smartmontools
+      - nftables
     state: present
     update_cache: true
   when: ansible_facts['os_family'] == "Debian"
@@ -175,6 +163,8 @@
     update_cache: true
   when: ansible_facts['os_family'] == "Debian"
 
+  # Creating the file with touch, avoids errors due the pve fs mounted on `/etc/pve`
+  # /etc/pve/local is a smynlink to /etc/pve/ansible_facts['hostname']
 - name: Ensure host firewall file exists
   ansible.builtin.command:
     cmd: touch /etc/pve/local/host.fw

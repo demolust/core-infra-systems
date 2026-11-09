@@ -10,7 +10,7 @@ id={{ item.id }}
 parent=lan0
 
 [ipv4]
-address1={{ item.ipv4 }}
+address1={{ item.ipv4 }}/{{ item.network.split('/')[1] }}
 method=manual
 
 [ipv6]
