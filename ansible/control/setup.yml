@@ -3,8 +3,7 @@
   hosts: control_nodes
   become: true
   gather_facts: true
-  vars:
-    ansible_python_interpreter: /usr/bin/python3
+
   tasks:
     - name: Configure system
       ansible.builtin.import_tasks: tasks/system_setup.yml
