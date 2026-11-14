@@ -41,7 +41,8 @@
     chdir: "{{ admin_home_dir }}"
   register: zsh_setup_output
 
-- debug:
+- name: ZSH setup stdout
+  ansible.builtin.debug:
     var: zsh_setup_output.stdout_lines
 
 - name: Download rustup script
@@ -91,16 +92,14 @@
   ansible.builtin.shell: |
     source ~/.zshenv
     source "$ZDOTDIR/.zshrc"
-    # Comment for debugging as it can hit github api rate limit
     script-update-local-packages
-    # Produce some output
-    echo 'DEBUG: Output'
   args:
     executable: /bin/zsh
     chdir: "{{ admin_home_dir }}"
   register: script_output
 
-- debug:
+- name:  Script stdout
+  ansible.builtin.debug:
     var: script_output.stdout_lines
 
 - name: Ensure Neovim cache directory exists
@@ -136,11 +135,9 @@
     chdir: "{{ admin_home_dir }}"
   register: uv_tools_output
 
-- debug:
-    var: uv_tools_output.stdout_lines
-
-- debug:
-    var: uv_tools_output.stderr_lines
+- name: Show full UV command results
+  ansible.builtin.debug:
+    var: uv_tools_output
 
 - name: Install tmux plugin manager
   ansible.builtin.shell: |
